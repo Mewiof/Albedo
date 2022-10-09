@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.3.32922.545
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Albedo", "Albedo\Albedo.csproj", "{61D75B7D-1536-4179-B648-675961302803}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Albedo.Tests", "Albedo.Tests\Albedo.Tests.csproj", "{287B010A-6E4F-4CCF-993E-9FC945D8157C}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{61D75B7D-1536-4179-B648-675961302803}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{61D75B7D-1536-4179-B648-675961302803}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{61D75B7D-1536-4179-B648-675961302803}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{61D75B7D-1536-4179-B648-675961302803}.Release|Any CPU.Build.0 = Release|Any CPU
+		{287B010A-6E4F-4CCF-993E-9FC945D8157C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{287B010A-6E4F-4CCF-993E-9FC945D8157C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{287B010A-6E4F-4CCF-993E-9FC945D8157C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{287B010A-6E4F-4CCF-993E-9FC945D8157C}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {74CF567C-3D39-4CAA-9961-E11A05B38196}
+	EndGlobalSection
+EndGlobal
