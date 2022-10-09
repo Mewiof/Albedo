@@ -13,8 +13,7 @@ namespace Albedo {
 		public readonly Writer writer;
 		public readonly Reader reader;
 		public readonly ITransport transport;
-		/// <summary>For debugging</summary>
-		public string name;
+		public readonly NetManager manager;
 
 		/// <summary>uId, delegate</summary>
 		private readonly Dictionary<ushort, ServerMessageHandlerDelegate> _serverMessageHandlers;
@@ -28,11 +27,11 @@ namespace Albedo {
 
 		#endregion
 
-		public DataHandler(ITransport transport, string name) {
+		public DataHandler(ITransport transport, NetManager manager) {
 			writer = new();
 			reader = new();
 			this.transport = transport;
-			this.name = name;
+			this.manager = manager;
 			_serverMessageHandlers = new();
 			_clientMessageHandlers = new();
 		}
@@ -43,7 +42,7 @@ namespace Albedo {
 			reader.Set(segment);
 			ushort messageUId = reader.GetUShort();
 			if (!_serverMessageHandlers.TryGetValue(messageUId, out ServerMessageHandlerDelegate messageHandlerDelegate)) {
-				throw new Exception($"[{name}->{nameof(ServerOnData)}] Unknown 'messageUId'->{messageUId}");
+				throw new Exception($"[{manager.name}->{nameof(ServerOnData)}] Unknown 'messageUId'->{messageUId}");
 			}
 			messageHandlerDelegate.Invoke(senderConnId, reader);
 		}
@@ -52,7 +51,7 @@ namespace Albedo {
 			reader.Set(segment);
 			ushort messageUId = reader.GetUShort();
 			if (!_clientMessageHandlers.TryGetValue(messageUId, out ClientMessageHandlerDelegate messageHandlerDelegate)) {
-				throw new Exception($"[{name}->{nameof(ClientOnData)}] Unknown 'messageUId'->{messageUId}");
+				throw new Exception($"[{manager.name}->{nameof(ClientOnData)}] Unknown 'messageUId'->{messageUId}");
 			}
 			messageHandlerDelegate.Invoke(reader);
 		}
@@ -64,7 +63,7 @@ namespace Albedo {
 		/// <summary>[!] Server</summary>
 		public void RegisterMessageHandler(ushort messageUId, ServerMessageHandlerDelegate handler) {
 			if (_serverMessageHandlers.ContainsKey(messageUId)) {
-				throw new ArgumentException($"[{name}->Server] Unable to register message ('messageUId'->{messageUId} is already registered)");
+				throw new ArgumentException($"[{manager.name}->Server] Unable to register message ('messageUId'->{messageUId} is already registered)");
 			}
 			_serverMessageHandlers[messageUId] = handler;
 		}
@@ -72,7 +71,7 @@ namespace Albedo {
 		/// <summary>[!] Client</summary>
 		public void RegisterMessageHandler(ushort messageUId, ClientMessageHandlerDelegate handler) {
 			if (_clientMessageHandlers.ContainsKey(messageUId)) {
-				throw new ArgumentException($"[{name}->Client] Unable to register message ('messageUId'->{messageUId} is already registered)");
+				throw new ArgumentException($"[{manager.name}->Client] Unable to register message ('messageUId'->{messageUId} is already registered)");
 			}
 			_clientMessageHandlers[messageUId] = handler;
 		}

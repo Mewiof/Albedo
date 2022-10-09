@@ -11,8 +11,16 @@ namespace Albedo {
 			Disconn
 		}
 
+		public enum Error {// TODO
+		}
+
+		public struct DisconnInfo {// TODO
+		}
+
 		public Type type;
 		public uint connId;
 		public ArraySegment<byte> segment;
+		public Error error;
+		public DisconnInfo disconnInfo;
 	}
 }
