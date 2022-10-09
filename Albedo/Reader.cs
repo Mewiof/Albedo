@@ -266,6 +266,14 @@ namespace Albedo {
 
 		#endregion
 
+		// Misc
+
+		public T Get<T>() where T : INetSerializable, new() {
+			T value = new();
+			value.Deserialize(this);
+			return value;
+		}
+
 		#endregion
 	}
 }

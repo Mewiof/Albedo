@@ -253,6 +253,12 @@ namespace Albedo {
 
 		#endregion
 
+		// Misc
+
+		public void Put<T>(T value) where T : INetSerializable {
+			value.Serialize(this);
+		}
+
 		#endregion
 	}
 }
