@@ -46,6 +46,8 @@ namespace Albedo {
 
 		#region Get
 
+		// Unmanaged
+
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		internal T GetUnmanaged<T>()
 			where T : unmanaged {
@@ -109,6 +111,9 @@ namespace Albedo {
 			return GetUnmanaged<double>();
 		}
 
+		// String
+
+		/// <param name="maxLength">[!] Limits the number of characters in a string, not its size in bytes</param>
 		/// <returns>
 		/// 'null' if size reaches 'Writer.STRING_BUFFER_MAX_LENGTH'
 		/// <para>'string.Empty' if length exceeds 'maxLength'</para>
@@ -156,18 +161,24 @@ namespace Albedo {
 			return Writer.encoding.GetString(data.Array, data.Offset, data.Count);
 		}
 
+		// Raw
+
+		/// <returns>Raw</returns>
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public ArraySegment<byte> GetDataSegment(int count) {
-			ArraySegment<byte> result = new(_data.Array, _data.Offset + _position, count);
-			_position += count;
+		public ArraySegment<byte> GetDataSegment(int byteCount) {
+			ArraySegment<byte> result = new(_data.Array, _data.Offset + _position, byteCount);
+			_position += byteCount;
 			return result;
 		}
 
+		/// <returns>Raw</returns>
 		public ArraySegment<byte> GetRemainingDataSegment() {
 			return GetDataSegment(Available);
 		}
 
 		#region Array
+
+		// Unmanaged
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public T[] GetArray<T>(ushort size) {
@@ -230,6 +241,8 @@ namespace Albedo {
 		public ulong[] GetULongArray() {
 			return GetArray<ulong>(sizeof(ulong));
 		}
+
+		// String
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public string[] GetStringArray() {

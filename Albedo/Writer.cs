@@ -166,6 +166,8 @@ namespace Albedo {
 
 		#region Array
 
+		// Unmanaged
+
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public void PutArray(Array value, int size) {
 			if (value == null) {
@@ -228,6 +230,8 @@ namespace Albedo {
 		public void PutDoubleArray(double[] value) {
 			PutArray(value, sizeof(double));
 		}
+
+		// String
 
 		public void PutStringArray(string[] value) {
 			if (value == null) {

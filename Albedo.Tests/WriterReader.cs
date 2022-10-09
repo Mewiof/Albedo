@@ -204,11 +204,13 @@
 		public void WriteReadString() {
 			Writer writer = new();
 			writer.PutString("123456789", 8);
+			writer.PutString("123456789");
 
 			Reader reader = new(writer);
 
 			Assert.Multiple(() => {
 				Assert.That(reader.GetString(), Is.EqualTo("12345678"));
+				Assert.That(reader.GetString(8), Is.EqualTo(string.Empty));
 
 				Assert.That(reader.Available, Is.EqualTo(0));
 			});
@@ -256,6 +258,9 @@
 		}
 
 		#region Array
+
+		// Unmanaged
+
 		[Test]
 		public void WriteReadByteArray() {
 			Writer writer = new();
@@ -279,6 +284,273 @@
 				Assert.That(reader.Available, Is.EqualTo(0));
 			});
 		}
+
+		[Test]
+		public void WriteReadSByteArray() {
+			Writer writer = new();
+
+			sbyte[]
+				arr1 = null,
+				arr2 = new sbyte[] { sbyte.MinValue, sbyte.MaxValue },
+				arr3 = Array.Empty<sbyte>();
+
+			writer.PutSByteArray(arr1);
+			writer.PutSByteArray(arr2);
+			writer.PutSByteArray(arr3);
+
+			Reader reader = new(writer);
+
+			Assert.Multiple(() => {
+				Assert.That(reader.GetSByteArray(), Is.EqualTo(arr1));
+				Assert.That(reader.GetSByteArray(), Is.EqualTo(arr2));
+				Assert.That(reader.GetSByteArray(), Is.EqualTo(arr3));
+
+				Assert.That(reader.Available, Is.EqualTo(0));
+			});
+		}
+
+		[Test]
+		public void WriteReadBoolArray() {
+			Writer writer = new();
+
+			bool[]
+				arr1 = null,
+				arr2 = new bool[] { false, true },
+				arr3 = Array.Empty<bool>();
+
+			writer.PutBoolArray(arr1);
+			writer.PutBoolArray(arr2);
+			writer.PutBoolArray(arr3);
+
+			Reader reader = new(writer);
+
+			Assert.Multiple(() => {
+				Assert.That(reader.GetBoolArray(), Is.EqualTo(arr1));
+				Assert.That(reader.GetBoolArray(), Is.EqualTo(arr2));
+				Assert.That(reader.GetBoolArray(), Is.EqualTo(arr3));
+
+				Assert.That(reader.Available, Is.EqualTo(0));
+			});
+		}
+
+		[Test]
+		public void WriteReadShortArray() {
+			Writer writer = new();
+
+			short[]
+				arr1 = null,
+				arr2 = new short[] { short.MinValue, short.MaxValue },
+				arr3 = Array.Empty<short>();
+
+			writer.PutShortArray(arr1);
+			writer.PutShortArray(arr2);
+			writer.PutShortArray(arr3);
+
+			Reader reader = new(writer);
+
+			Assert.Multiple(() => {
+				Assert.That(reader.GetShortArray(), Is.EqualTo(arr1));
+				Assert.That(reader.GetShortArray(), Is.EqualTo(arr2));
+				Assert.That(reader.GetShortArray(), Is.EqualTo(arr3));
+
+				Assert.That(reader.Available, Is.EqualTo(0));
+			});
+		}
+
+		[Test]
+		public void WriteReadUShortArray() {
+			Writer writer = new();
+
+			ushort[]
+				arr1 = null,
+				arr2 = new ushort[] { ushort.MinValue, ushort.MaxValue },
+				arr3 = Array.Empty<ushort>();
+
+			writer.PutUShortArray(arr1);
+			writer.PutUShortArray(arr2);
+			writer.PutUShortArray(arr3);
+
+			Reader reader = new(writer);
+
+			Assert.Multiple(() => {
+				Assert.That(reader.GetUShortArray(), Is.EqualTo(arr1));
+				Assert.That(reader.GetUShortArray(), Is.EqualTo(arr2));
+				Assert.That(reader.GetUShortArray(), Is.EqualTo(arr3));
+
+				Assert.That(reader.Available, Is.EqualTo(0));
+			});
+		}
+
+		[Test]
+		public void WriteReadIntArray() {
+			Writer writer = new();
+
+			int[]
+				arr1 = null,
+				arr2 = new int[] { int.MinValue, int.MaxValue },
+				arr3 = Array.Empty<int>();
+
+			writer.PutIntArray(arr1);
+			writer.PutIntArray(arr2);
+			writer.PutIntArray(arr3);
+
+			Reader reader = new(writer);
+
+			Assert.Multiple(() => {
+				Assert.That(reader.GetIntArray(), Is.EqualTo(arr1));
+				Assert.That(reader.GetIntArray(), Is.EqualTo(arr2));
+				Assert.That(reader.GetIntArray(), Is.EqualTo(arr3));
+
+				Assert.That(reader.Available, Is.EqualTo(0));
+			});
+		}
+
+		[Test]
+		public void WriteReadUIntArray() {
+			Writer writer = new();
+
+			uint[]
+				arr1 = null,
+				arr2 = new uint[] { uint.MinValue, uint.MaxValue },
+				arr3 = Array.Empty<uint>();
+
+			writer.PutUIntArray(arr1);
+			writer.PutUIntArray(arr2);
+			writer.PutUIntArray(arr3);
+
+			Reader reader = new(writer);
+
+			Assert.Multiple(() => {
+				Assert.That(reader.GetUIntArray(), Is.EqualTo(arr1));
+				Assert.That(reader.GetUIntArray(), Is.EqualTo(arr2));
+				Assert.That(reader.GetUIntArray(), Is.EqualTo(arr3));
+
+				Assert.That(reader.Available, Is.EqualTo(0));
+			});
+		}
+
+		[Test]
+		public void WriteReadFloatArray() {
+			Writer writer = new();
+
+			float[]
+				arr1 = null,
+				arr2 = new float[] { float.MinValue, float.MaxValue },
+				arr3 = Array.Empty<float>();
+
+			writer.PutFloatArray(arr1);
+			writer.PutFloatArray(arr2);
+			writer.PutFloatArray(arr3);
+
+			Reader reader = new(writer);
+
+			Assert.Multiple(() => {
+				Assert.That(reader.GetFloatArray(), Is.EqualTo(arr1));
+				Assert.That(reader.GetFloatArray(), Is.EqualTo(arr2));
+				Assert.That(reader.GetFloatArray(), Is.EqualTo(arr3));
+
+				Assert.That(reader.Available, Is.EqualTo(0));
+			});
+		}
+
+		[Test]
+		public void WriteReadLongArray() {
+			Writer writer = new();
+
+			long[]
+				arr1 = null,
+				arr2 = new long[] { long.MinValue, long.MaxValue },
+				arr3 = Array.Empty<long>();
+
+			writer.PutLongArray(arr1);
+			writer.PutLongArray(arr2);
+			writer.PutLongArray(arr3);
+
+			Reader reader = new(writer);
+
+			Assert.Multiple(() => {
+				Assert.That(reader.GetLongArray(), Is.EqualTo(arr1));
+				Assert.That(reader.GetLongArray(), Is.EqualTo(arr2));
+				Assert.That(reader.GetLongArray(), Is.EqualTo(arr3));
+
+				Assert.That(reader.Available, Is.EqualTo(0));
+			});
+		}
+
+		[Test]
+		public void WriteReadULongArray() {
+			Writer writer = new();
+
+			ulong[]
+				arr1 = null,
+				arr2 = new ulong[] { ulong.MinValue, ulong.MaxValue },
+				arr3 = Array.Empty<ulong>();
+
+			writer.PutULongArray(arr1);
+			writer.PutULongArray(arr2);
+			writer.PutULongArray(arr3);
+
+			Reader reader = new(writer);
+
+			Assert.Multiple(() => {
+				Assert.That(reader.GetULongArray(), Is.EqualTo(arr1));
+				Assert.That(reader.GetULongArray(), Is.EqualTo(arr2));
+				Assert.That(reader.GetULongArray(), Is.EqualTo(arr3));
+
+				Assert.That(reader.Available, Is.EqualTo(0));
+			});
+		}
+
+		[Test]
+		public void WriteReadDoubleArray() {
+			Writer writer = new();
+
+			double[]
+				arr1 = null,
+				arr2 = new double[] { double.MinValue, double.MaxValue },
+				arr3 = Array.Empty<double>();
+
+			writer.PutDoubleArray(arr1);
+			writer.PutDoubleArray(arr2);
+			writer.PutDoubleArray(arr3);
+
+			Reader reader = new(writer);
+
+			Assert.Multiple(() => {
+				Assert.That(reader.GetDoubleArray(), Is.EqualTo(arr1));
+				Assert.That(reader.GetDoubleArray(), Is.EqualTo(arr2));
+				Assert.That(reader.GetDoubleArray(), Is.EqualTo(arr3));
+
+				Assert.That(reader.Available, Is.EqualTo(0));
+			});
+		}
+
+		// String
+
+		[Test]
+		public void WriteReadStringArray() {
+			Writer writer = new();
+
+			string[]
+				arr1 = null,
+				arr2 = new string[] { string.Empty, "123aBcаБв", null, "اختبار" },
+				arr3 = Array.Empty<string>();
+
+			writer.PutStringArray(arr1);
+			writer.PutStringArray(arr2);
+			writer.PutStringArray(arr3);
+
+			Reader reader = new(writer);
+
+			Assert.Multiple(() => {
+				Assert.That(reader.GetStringArray(), Is.EqualTo(arr1));
+				Assert.That(reader.GetStringArray(), Is.EqualTo(arr2));
+				Assert.That(reader.GetStringArray(), Is.EqualTo(arr3));
+
+				Assert.That(reader.Available, Is.EqualTo(0));
+			});
+		}
+
 		#endregion
 	}
 }
