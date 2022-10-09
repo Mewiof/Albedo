@@ -31,12 +31,14 @@ namespace Albedo {
 			}
 		}
 
+		/// <summary>Also sets '_position' to 0</summary>
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public void Set(ArraySegment<byte> data) {
 			_data = data.Array;
 			_position = 0;
 		}
 
+		/// <summary>Also sets '_position' to 0</summary>
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public void Set(Reader reader) {
 			Set(reader.Data);

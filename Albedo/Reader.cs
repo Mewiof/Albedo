@@ -23,12 +23,14 @@ namespace Albedo {
 			_position = position;
 		}
 
+		/// <summary>Also sets '_position' to 0</summary>
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public void Set(ArraySegment<byte> data) {
 			_data = data;
 			_position = 0;
 		}
 
+		/// <summary>Also sets '_position' to 0</summary>
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public void Set(Writer writer) {
 			Set(writer.Data);
