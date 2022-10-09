@@ -1,0 +1,11 @@
+﻿1.
+Name: kcp2k
+Author(s): vis2k (mischa), limpo1989, Paul Pacheco, Lymdun & Contributors
+Link: https://github.com/vis2k/kcp2k
+License: MIT
+
+2.
+Name: where-allocation
+Author(s): vis2k (mischa), FakeByte
+Link: https://github.com/vis2k/where-allocation
+License: MIT
