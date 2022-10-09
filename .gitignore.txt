@@ -1,0 +1,5 @@
+/Albedo/bin/
+/Albedo/obj/
+
+/Albedo.Tests/bin/
+/Albedo.Tests/obj/
