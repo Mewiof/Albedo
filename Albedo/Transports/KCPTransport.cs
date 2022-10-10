@@ -38,7 +38,8 @@ namespace Albedo.Transports {
 			_server = new(
 				connId => _serverEventQueue.Enqueue(new() {
 					type = TransportEventData.Type.Conn,
-					connId = (uint)connId
+					connId = (uint)connId,
+					endPoint = _server.connections[connId].GetRemoteEndPoint()
 				}),
 				(connId, data, _) => _serverEventQueue.Enqueue(new() {
 					type = TransportEventData.Type.Data,
@@ -152,7 +153,7 @@ namespace Albedo.Transports {
 			return true;
 		}
 
-		public void ServerDisconnect(uint connId) {
+		public void Disconnect(uint connId) {
 			if (!IsServer) {
 				throw new Exception($"[{manager.name}->{nameof(KCPTransport)}->Server] Unable to disconnect->{connId} (inactive server)");
 			}

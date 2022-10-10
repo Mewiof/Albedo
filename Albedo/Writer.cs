@@ -66,7 +66,7 @@ namespace Albedo {
 		// Unmanaged
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		internal void PutUnmanaged<T>(T value)
+		public void PutUnmanaged<T>(T value)
 			where T : unmanaged {
 
 			int size = Unsafe.SizeOf<T>();

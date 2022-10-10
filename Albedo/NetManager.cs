@@ -20,6 +20,7 @@ namespace Albedo {
 		public ushort port = 25500;
 		public int maxNumOfConnections = 4;
 		public ITransport transport;
+		public NetAuthenticator authenticator;
 
 		/// <summary>Override</summary>
 		protected virtual void OnRegisterMessageHandlers() { }
@@ -27,6 +28,11 @@ namespace Albedo {
 		public virtual void Init() {
 			server = new(transport, this);
 			client = new(transport, this);
+
+			if (authenticator != null) {
+				authenticator.RegisterMessageHandlers();
+			}
+
 			OnRegisterMessageHandlers();
 		}
 
@@ -102,13 +108,13 @@ namespace Albedo {
 		// Server
 
 		/// <summary>Override (called on server)</summary>
-		public virtual void OnClientConnected(uint connId) { }
+		public virtual void OnClientConnected(ConnToClientData conn) { }
 
 		/// <summary>Override (called on server)</summary>
 		public virtual void OnServerTransportError(TransportEventData.Error error) { }
 
 		/// <summary>Override (called on server)</summary>
-		public virtual void OnClientDisconnected(uint connId, TransportEventData.DisconnInfo disconnInfo) { }
+		public virtual void OnClientDisconnected(ConnToClientData conn, TransportEventData.DisconnInfo disconnInfo) { }
 
 		// Client
 

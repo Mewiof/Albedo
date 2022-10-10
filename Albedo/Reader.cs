@@ -51,7 +51,7 @@ namespace Albedo {
 		// Unmanaged
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		internal T GetUnmanaged<T>()
+		public T GetUnmanaged<T>()
 			where T : unmanaged {
 
 			int size = Unsafe.SizeOf<T>();
@@ -86,7 +86,7 @@ namespace Albedo {
 		}
 
 		public char GetChar() {
-			return (char)GetUShort();
+			return (char)GetUnmanaged<ushort>();
 		}
 
 		public int GetInt() {
@@ -183,7 +183,9 @@ namespace Albedo {
 		// Unmanaged
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public T[] GetArray<T>(ushort size) {
+		public T[] GetArray<T>(ushort size)
+			where T : unmanaged {
+
 			ushort length = GetUShort();
 			if (length == 0) {
 				return null;

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Net;
 
 namespace Albedo {
 
@@ -19,6 +20,7 @@ namespace Albedo {
 
 		public Type type;
 		public uint connId;
+		public EndPoint endPoint;
 		public ArraySegment<byte> segment;
 		public Error error;
 		public DisconnInfo disconnInfo;

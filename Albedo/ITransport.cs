@@ -14,6 +14,7 @@ namespace Albedo {
 		void ClientSend(ArraySegment<byte> segment, DeliveryMethod deliveryMethod);
 		bool ServerTryReceiveEvent(out TransportEventData eventData);
 		bool ClientTryReceiveEvent(out TransportEventData eventData);
-		void ServerDisconnect(uint connId);
+		/// <summary>Server</summary>
+		void Disconnect(uint connId);
 	}
 }
