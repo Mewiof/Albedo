@@ -1,11 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Net;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace Albedo {
+﻿namespace Albedo {
 
 	public abstract class NetAuthenticator {
 
@@ -17,7 +10,7 @@ namespace Albedo {
 			RESPONSE_MESSAGE_TYPE_REJECT = 0,
 			RESPONSE_MESSAGE_TYPE_ACCEPT = 1;
 
-		public const float DELAY_BEFORE_DISCONNECTION = 1f;
+		public const float DELAY_BEFORE_DISCONN = 1f;
 
 		public readonly NetManager manager;
 
@@ -29,7 +22,10 @@ namespace Albedo {
 
 		#region Abstract
 
-		/// <summary>Server</summary>
+		/// <summary>
+		/// Server
+		/// <para>(use 'Accept()' / 'Reject()' methods)</para>
+		/// </summary>
 		protected abstract void OnRequestMessage(ConnToClientData conn, Reader reader);
 
 		/// <summary>Client</summary>
@@ -37,6 +33,12 @@ namespace Albedo {
 
 		/// <summary>Client</summary>
 		protected abstract void OnServerRejected(Reader reader);
+
+		/// <summary>
+		/// Called on CLIENT at the beginning of auth process
+		/// <para>(use to send custom auth request)</para>
+		/// </summary>
+		public abstract void OnClientAuth();
 
 		#endregion
 
@@ -46,8 +48,12 @@ namespace Albedo {
 			}
 		}
 
-		public void ServerStartAuth(ConnToClientData conn) {
-			manager.server.taskManager.Add(timeout, () => Timeout(conn));
+		/// <summary>
+		/// Called on SERVER at the beginning of auth process
+		/// <para>(by default it starts a countdown to timeout)</para>
+		/// </summary>
+		public virtual void OnServerAuth(ConnToClientData conn) {
+			conn.AddTask("auth_timeout", timeout, () => Timeout(conn));
 		}
 
 		private void Internal_OnRequestMessage(ConnToClientData conn, Reader reader) {
@@ -106,7 +112,7 @@ namespace Albedo {
 		}
 
 		private void DelayedDisconnect(ConnToClientData conn) {
-			manager.server.taskManager.Add(DELAY_BEFORE_DISCONNECTION, () =>
+			conn.AddTask("delayed_disconnect", DELAY_BEFORE_DISCONN, () =>
 				manager.server.transport.Disconnect(conn.id));
 		}
 

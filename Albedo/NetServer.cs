@@ -4,17 +4,19 @@
 
 		private readonly Pool<ConnToClientData> _connPool;
 		public readonly System.Collections.Generic.Dictionary<uint, ConnToClientData> connections;
-		public readonly TaskManager<uint> taskManager;
 
 		public NetServer(ITransport transport, NetManager manager) : base(transport, manager) {
 			_connPool = new(() => new(), manager.maxNumOfConnections);
 			connections = new();
-			taskManager = new();
 		}
 
-		public void Tick() {
+		public void Tick(float delta) {
 			while (transport.ServerTryReceiveEvent(out _tempEventData)) {
 				OnTransportEvent(_tempEventData);
+			}
+			// TODO: avoid using 'foreach' in 'Tick'
+			foreach (ConnToClientData conn in connections.Values) {
+				conn.Tick(ref delta);
 			}
 		}
 
@@ -51,13 +53,17 @@
 					connections[eventData.connId] = conn;
 					// callback
 					manager.OnClientConnected(conn);
-					if (manager.authenticator != null) {
-						manager.authenticator.ServerStartAuth(conn);
-					}
+					manager.authenticator.OnServerAuth(conn);
 					return;
 
 				case TransportEventData.Type.Data:
-					ServerOnData(connections[eventData.connId], eventData.segment);
+					try {
+						ServerOnData(connections[eventData.connId], eventData.segment);
+					}
+					catch (System.Exception e) {
+						// TODO: log
+						transport.Disconnect(eventData.connId);
+					}
 					return;
 
 				case TransportEventData.Type.Error:

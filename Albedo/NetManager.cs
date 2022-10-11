@@ -26,19 +26,25 @@ namespace Albedo {
 		protected virtual void OnRegisterMessageHandlers() { }
 
 		public virtual void Init() {
+			if (transport == null) {
+				throw new Exception($"[{name}] '{nameof(transport)}' is null");
+			}
+
+			if (authenticator == null) {
+				throw new Exception($"[{name}] '{nameof(authenticator)}' is null");
+			}
+
 			server = new(transport, this);
 			client = new(transport, this);
 
-			if (authenticator != null) {
-				authenticator.RegisterMessageHandlers();
-			}
+			authenticator.RegisterMessageHandlers();
 
 			OnRegisterMessageHandlers();
 		}
 
-		public virtual void Tick() {
+		public virtual void Tick(float delta) {
 			if (isServer) {
-				server.Tick();
+				server.Tick(delta);
 			}
 			if (isClient) {
 				client.Tick();

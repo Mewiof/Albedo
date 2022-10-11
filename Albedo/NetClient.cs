@@ -34,6 +34,7 @@
 			switch (eventData.type) {
 				case TransportEventData.Type.Conn:
 					manager.OnConnected();
+					manager.authenticator.OnClientAuth();
 					return;
 				case TransportEventData.Type.Data:
 					ClientOnData(eventData.segment);

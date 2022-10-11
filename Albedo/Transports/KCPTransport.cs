@@ -14,8 +14,8 @@ namespace Albedo.Transports {
 			this.manager = manager;
 		}
 
-		private KcpServerNonAlloc _server;
-		private KcpClientNonAlloc _client;
+		private KcpServer _server;
+		private KcpClient _client;
 
 		public bool IsServer => _server != null;
 
