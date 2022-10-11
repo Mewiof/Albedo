@@ -101,6 +101,11 @@ namespace Albedo {
 			reader.Set(segment);
 			ushort messageUId = reader.GetUShort();
 
+			// TODO: move 'ConnToClientData.AuthStage.Requested' check here
+			if (sender.authStage != ConnToClientData.AuthStage.Authenticated && messageUId != NetAuthenticator.REQUEST_MESSAGE_UNIQUE_ID) {
+				throw new Exception($"[{manager.name}] Received unauthorized message");
+			}
+
 			if (reader.Available > 0) {
 				if (!_serverAltMessageHandlers.TryGetValue(messageUId, out ServerAltMessageHandlerDelegate altHandler)) {
 					throw GetUnregisteredMessageException(messageUId);
