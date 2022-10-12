@@ -5,10 +5,12 @@ namespace Albedo {
 
 	public abstract class Transport {
 
-		public enum Error {
+		public enum Error { // TODO
+			Unimplemented
 		}
 
-		public struct DisconnInfo {
+		public enum DisconnInfo { // TODO
+			Unimplemented
 		}
 
 		public abstract bool IsServer { get; }

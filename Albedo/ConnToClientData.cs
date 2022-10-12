@@ -86,6 +86,11 @@ namespace Albedo {
 			_activeTasks.Add(_tempTask);
 		}
 
+		/* At this point I don't see any scenario where we
+		 * need to use the 'CancelTask' func or 'name' parameter since all active tasks are
+		 * automatically cancelled when 'ConnToClientData' is reassigned
+		 */
+
 		// May be redundant
 		public void CancelTask(string name) {
 			for (_i = _activeTasks.Count - 1; _i >= 0; _i--) {

@@ -17,12 +17,14 @@ namespace Albedo {
 		/// <summary>For debugging</summary>
 		public string name = nameof(NetManager);
 		public string address = LOCAL_ADDRESS;
+		/// <summary>'25500' by default</summary>
 		public ushort port = 25500;
+		/// <summary>'4' by default</summary>
 		public int maxNumOfConnections = 4;
 		public Transport transport;
 		public NetAuthenticator authenticator;
 
-		/// <summary>Override</summary>
+		/// <summary>Override (called on server and client when invoking 'Init')</summary>
 		protected virtual void OnRegisterMessageHandlers() { }
 
 		public virtual void Init() {
@@ -44,7 +46,7 @@ namespace Albedo {
 
 		public virtual void Tick(float delta) {
 			if (isServer) {
-				server.Tick(delta);
+				server.Tick(ref delta);
 			}
 			if (isClient) {
 				client.Tick();
@@ -59,7 +61,7 @@ namespace Albedo {
 			}
 			server.Start(port);
 			isServer = true;
-			OnServerStarted();
+			ServerOnStarted();
 		}
 
 		public void StartServer() {
@@ -72,7 +74,7 @@ namespace Albedo {
 			}
 			server.Stop();
 			isServer = false;
-			OnServerStopped();
+			ServerOnStopped();
 		}
 
 		public virtual void StartClient(string address, ushort port) {
@@ -81,7 +83,7 @@ namespace Albedo {
 			}
 			client.Start(address, port);
 			isClient = true;
-			OnClientStarted();
+			ClientOnStarted();
 		}
 
 		public void StartClient() {
@@ -94,7 +96,7 @@ namespace Albedo {
 			}
 			client.Stop();
 			isClient = false;
-			OnClientStopped();
+			ClientOnStopped();
 		}
 
 		public virtual void StartHost() {
@@ -117,9 +119,6 @@ namespace Albedo {
 		public virtual void ServerOnClientConnected(ConnToClientData conn) { }
 
 		/// <summary>Override (called on server)</summary>
-		public virtual void ServerOnClientAuthenticated(ConnToClientData conn) { }
-
-		/// <summary>Override (called on server)</summary>
 		public virtual void ServerOnTransportError(Transport.Error error) { }
 
 		/// <summary>Override (called on server)</summary>
@@ -129,9 +128,6 @@ namespace Albedo {
 
 		/// <summary>Override (called on client)</summary>
 		public virtual void ClientOnConnected() { }
-
-		/// <summary>Override (called on client)</summary>
-		public virtual void ClientOnAuthenticated() { }
 
 		/// <summary>Override (called on client)</summary>
 		public virtual void ClientOnTransportError(Transport.Error error) { }
@@ -146,18 +142,18 @@ namespace Albedo {
 		// Server
 
 		/// <summary>Override (called on server)</summary>
-		public virtual void OnServerStarted() { }
+		public virtual void ServerOnStarted() { }
 
 		/// <summary>Override (called on server)</summary>
-		public virtual void OnServerStopped() { }
+		public virtual void ServerOnStopped() { }
 
 		// Client
 
 		/// <summary>Override (called on client)</summary>
-		public virtual void OnClientStarted() { }
+		public virtual void ClientOnStarted() { }
 
 		/// <summary>Override (called on client)</summary>
-		public virtual void OnClientStopped() { }
+		public virtual void ClientOnStopped() { }
 		#endregion
 	}
 }

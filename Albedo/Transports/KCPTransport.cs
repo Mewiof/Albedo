@@ -1,14 +1,47 @@
 ﻿using System;
-using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using kcp2k;
 
 namespace Albedo.Transports {
 
-	// Dead zone. Written in a hurry
-
 	public sealed class KCPTransport : Transport {
 
 		public readonly NetManager manager;
+
+		/* TODO: write a more detailed '<summary>'. The current one does not reveal all 
+		 * the pros/cons of using a particular value, which may confuse and lead to unexpected transport behavior
+		 */
+
+		// 'kcp2k' configuration
+		/// <summary>
+		/// Listen to IPv6 and IPv4 simultaneously (disable if the platform only supports IPv4)
+		/// <para>'true' by default</para>
+		/// </summary>
+		public bool dualMode = true;
+		/// <summary>
+		/// Recommended to reduce latency (also scales better without buffers getting full)
+		/// <para>'true' by default</para>
+		/// </summary>
+		public bool noDelay = true;
+		/// <summary>'20' by default</summary>
+		public uint interval = 15;
+		/// <summary>'10000' by default</summary>
+		public int timeout = 10000;
+
+		/// <summary>'2' by default</summary>
+		public int fastResend = 2;
+		/// <summary>'false' by default</summary>
+		public bool congestionWindow = false;
+		/// <summary>'4096' by default</summary>
+		public uint sendWindowSize = 4096;
+		/// <summary>'4096' by default</summary>
+		public uint receiveWindowSize = 4096;
+		/// <summary>'Kcp.DEADLINK * 2' by default</summary>
+		public uint maxRetransmits = Kcp.DEADLINK * 2;
+		///// <summary>'true' by default</summary> TODO: add 'nonAlloc' support
+		//public bool nonAlloc = true;
+		/// <summary>'true' by default</summary>
+		public bool maximizeSendReceiveBuffToOSLimit = true;
 
 		public KCPTransport(NetManager manager) {
 			this.manager = manager;
@@ -21,7 +54,15 @@ namespace Albedo.Transports {
 
 		public override bool IsClient => _client != null;
 
-		// TODO: allow to pass custom parameters to 'kcp2k'
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		private static DeliveryMethod Convert(KcpChannel value) {
+			return value == KcpChannel.Reliable ? DeliveryMethod.Reliable : DeliveryMethod.Unreliable;
+		}
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		private static KcpChannel Convert(DeliveryMethod value) {
+			return value == DeliveryMethod.Reliable ? KcpChannel.Reliable : KcpChannel.Unreliable;
+		}
 
 		public override void StartServer(ushort port) {
 			if (IsServer) {
@@ -31,8 +72,18 @@ namespace Albedo.Transports {
 			_server = new(
 				connId => serverOnClientConnected.Invoke((uint)connId, _server.connections[connId].GetRemoteEndPoint()),
 				(connId, data, _) => serverOnData.Invoke((uint)connId, data),
-				connId => serverOnClientDisconnected.Invoke((uint)connId, default),
-				(connId, errorCode, errorText) => serverOnError.Invoke(default), false, true, 30);
+				connId => serverOnClientDisconnected.Invoke((uint)connId, default), // TODO: convert 'disconnInfo'
+				(connId, errorCode, errorText) => serverOnError.Invoke(default), // TODO: convert 'error'
+				dualMode,
+				noDelay,
+				interval,
+				fastResend,
+				congestionWindow,
+				sendWindowSize,
+				receiveWindowSize,
+				timeout,
+				maxRetransmits,
+				maximizeSendReceiveBuffToOSLimit);
 
 			_server.Start(port);
 		}
@@ -44,10 +95,19 @@ namespace Albedo.Transports {
 
 			_client = new(clientOnConnected,
 				(data, _) => clientOnData.Invoke(data),
-				() => clientOnDisconnected.Invoke(default),
-				(errorCode, errorText) => clientOnError.Invoke(default));
+				() => clientOnDisconnected.Invoke(default), // TODO: convert 'disconnInfo'
+				(errorCode, errorText) => clientOnError.Invoke(default)); // TODO: convert 'error'
 
-			_client.Connect(address, port, true, 30);//!
+			_client.Connect(address, port,
+				noDelay,
+				interval,
+				fastResend,
+				congestionWindow,
+				sendWindowSize,
+				receiveWindowSize,
+				timeout,
+				maxRetransmits,
+				maximizeSendReceiveBuffToOSLimit);
 		}
 
 		public override void StopServer() {
@@ -69,12 +129,12 @@ namespace Albedo.Transports {
 				throw new Exception($"[{manager.name}->{nameof(KCPTransport)}->Server] Unable to send message->{connId} (inactive)");
 			}
 
-			// 'kcp2k' does the same check when sending but does nothing if id is wrong, so we have to do the same thing twice
-			if (!_server.connections.TryGetValue((int)connId, out KcpServerConnection peer)) {
+			// 'kcp2k' does the same check when sending but does nothing if 'connId' is wrong, so we have to do it twice
+			if (!_server.connections.ContainsKey((int)connId)) {
 				throw new Exception($"[{manager.name}->{nameof(KCPTransport)}->Server] Unable to send message->{connId} (wrong conn id)");
 			}
 
-			_server.Send((int)connId, segment, deliveryMethod == DeliveryMethod.Reliable ? KcpChannel.Reliable : KcpChannel.Unreliable);
+			_server.Send((int)connId, segment, Convert(deliveryMethod));
 		}
 
 		public override void ClientSend(ArraySegment<byte> segment, DeliveryMethod deliveryMethod) {
@@ -82,7 +142,7 @@ namespace Albedo.Transports {
 				throw new Exception($"[{manager.name}->{nameof(KCPTransport)}->Client] Unable to send message (inactive)");
 			}
 
-			_client.Send(segment, deliveryMethod == DeliveryMethod.Reliable ? KcpChannel.Reliable : KcpChannel.Unreliable);
+			_client.Send(segment, Convert(deliveryMethod));
 		}
 
 		public override void ServerTick() {
@@ -98,12 +158,11 @@ namespace Albedo.Transports {
 				throw new Exception($"[{manager.name}->{nameof(KCPTransport)}->Server] Unable to disconnect->{connId} (inactive server)");
 			}
 
-			// 'kcp2k' does the same check but does nothing if id is wrong, so we have to do the same thing twice
-			if (!_server.connections.TryGetValue((int)connId, out KcpServerConnection peer)) {
+			if (!_server.connections.TryGetValue((int)connId, out KcpServerConnection conn)) {
 				throw new Exception($"[{manager.name}->{nameof(KCPTransport)}->Server] Unable to disconnect->{connId} (wrong conn id)");
 			}
 
-			_server.Disconnect((int)connId);
+			conn.Disconnect();
 		}
 	}
 }

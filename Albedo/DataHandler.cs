@@ -39,14 +39,14 @@ namespace Albedo {
 
 		#region Registration
 
-		private ArgumentException GetAlreadyRegisteredException(uint messageUId) {
-			return new ArgumentException($"[{manager.name}] Unable to register a message ('{nameof(messageUId)}'->{messageUId} is already registered)");
+		private ArgumentException GetAlreadyRegisteredException(uint messageUId, string handlerDelegateName) {
+			return new ArgumentException($"[{manager.name}] Unable to register a message ('{handlerDelegateName}'->{messageUId} is already registered)");
 		}
 
 		/// <summary>[!] Server</summary>
 		public void RegisterMessageHandler(ushort messageUId, ServerMessageHandlerDelegate handler) {
 			if (_serverMessageHandlers.ContainsKey(messageUId)) {
-				throw GetAlreadyRegisteredException(messageUId);
+				throw GetAlreadyRegisteredException(messageUId, typeof(ServerMessageHandlerDelegate).Name);
 			}
 			_serverMessageHandlers[messageUId] = handler;
 		}
@@ -54,7 +54,7 @@ namespace Albedo {
 		/// <summary>[!] Server</summary>
 		public void RegisterMessageHandler(ushort messageUId, ServerAltMessageHandlerDelegate handler) {
 			if (_serverAltMessageHandlers.ContainsKey(messageUId)) {
-				throw GetAlreadyRegisteredException(messageUId);
+				throw GetAlreadyRegisteredException(messageUId, typeof(ServerAltMessageHandlerDelegate).Name);
 			}
 			_serverAltMessageHandlers[messageUId] = handler;
 		}
@@ -62,7 +62,7 @@ namespace Albedo {
 		/// <summary>[!] Client</summary>
 		public void RegisterMessageHandler(ushort messageUId, ClientMessageHandlerDelegate handler) {
 			if (_clientMessageHandlers.ContainsKey(messageUId)) {
-				throw GetAlreadyRegisteredException(messageUId);
+				throw GetAlreadyRegisteredException(messageUId, typeof(ClientMessageHandlerDelegate).Name);
 			}
 			_clientMessageHandlers[messageUId] = handler;
 		}
@@ -70,7 +70,7 @@ namespace Albedo {
 		/// <summary>[!] Client</summary>
 		public void RegisterMessageHandler(ushort messageUId, ClientAltMessageHandlerDelegate handler) {
 			if (_clientAltMessageHandlers.ContainsKey(messageUId)) {
-				throw GetAlreadyRegisteredException(messageUId);
+				throw GetAlreadyRegisteredException(messageUId, typeof(ClientAltMessageHandlerDelegate).Name);
 			}
 			_clientAltMessageHandlers[messageUId] = handler;
 		}
@@ -86,29 +86,36 @@ namespace Albedo {
 
 		#region Read
 
-		private Exception GetUnregisteredMessageException(ushort messageUId) {
-			return new Exception($"[{manager.name}] Received an unregistered '{nameof(messageUId)}'->{messageUId}");
+		private Exception GetUnregisteredMessageException(ushort messageUId, string handlerDelegateName) {
+			return new Exception($"[{manager.name}] Received an unregistered message ('{handlerDelegateName}'->{messageUId})");
 		}
 
 		public void ServerOnData(ConnToClientData sender, ArraySegment<byte> segment) {
 			reader.Set(segment);
 			ushort messageUId = reader.GetUShort();
 
-			// TODO: move 'ConnToClientData.AuthStage.Requested' check here
-			if (sender.authStage != ConnToClientData.AuthStage.Authenticated && messageUId != NetAuthenticator.REQUEST_MESSAGE_UNIQUE_ID) {
+			// auth
+			if (messageUId == NetAuthenticator.REQUEST_MESSAGE_UNIQUE_ID) {
+				if (sender.authStage != ConnToClientData.AuthStage.NotAuthenticated) {
+					throw new Exception($"[{manager.name}] Received multiple authorization requests");
+				}
+				sender.authStage = ConnToClientData.AuthStage.Requested;
+			}
+			else if (sender.authStage != ConnToClientData.AuthStage.Authenticated) {
 				throw new Exception($"[{manager.name}] Received unauthorized message");
 			}
 
+			// with additional data?
 			if (reader.Available > 0) {
 				if (!_serverAltMessageHandlers.TryGetValue(messageUId, out ServerAltMessageHandlerDelegate altHandler)) {
-					throw GetUnregisteredMessageException(messageUId);
+					throw GetUnregisteredMessageException(messageUId, typeof(ServerAltMessageHandlerDelegate).Name);
 				}
 				altHandler.Invoke(sender, reader);
 				return;
 			}
 
 			if (!_serverMessageHandlers.TryGetValue(messageUId, out ServerMessageHandlerDelegate handler)) {
-				throw GetUnregisteredMessageException(messageUId);
+				throw GetUnregisteredMessageException(messageUId, typeof(ServerMessageHandlerDelegate).Name);
 			}
 			handler.Invoke(sender);
 		}
@@ -117,16 +124,17 @@ namespace Albedo {
 			reader.Set(segment);
 			ushort messageUId = reader.GetUShort();
 
+			// with additional data?
 			if (reader.Available > 0) {
 				if (!_clientAltMessageHandlers.TryGetValue(messageUId, out ClientAltMessageHandlerDelegate altHandler)) {
-					throw GetUnregisteredMessageException(messageUId);
+					throw GetUnregisteredMessageException(messageUId, typeof(ClientAltMessageHandlerDelegate).Name);
 				}
 				altHandler.Invoke(reader);
 				return;
 			}
 
 			if (!_clientMessageHandlers.TryGetValue(messageUId, out ClientMessageHandlerDelegate handler)) {
-				throw GetUnregisteredMessageException(messageUId);
+				throw GetUnregisteredMessageException(messageUId, typeof(ClientMessageHandlerDelegate).Name);
 			}
 			handler.Invoke();
 		}
@@ -142,9 +150,9 @@ namespace Albedo {
 		}
 
 		/// <summary>Resets the internal 'writer' and writes to it</summary>
-		public void SetMessage(ushort uId, SerializerDelegate serializer) {
+		public void SetMessage(ushort uId, SerializerDelegate serializerDelegate) {
 			SetMessage(uId);
-			serializer.Invoke(writer);
+			serializerDelegate.Invoke(writer);
 		}
 
 		#endregion

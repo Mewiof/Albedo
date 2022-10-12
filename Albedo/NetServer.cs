@@ -10,7 +10,7 @@
 			connections = new();
 		}
 
-		public void Tick(float delta) {
+		public void Tick(ref float delta) {
 			transport.ServerTick();
 			// TODO: avoid using 'foreach' in 'Tick'
 			foreach (ConnToClientData conn in connections.Values) {
@@ -19,27 +19,36 @@
 		}
 
 		public void Start(ushort port) {
+			// reset callbacks
 			transport.serverOnClientConnected = (connId, endPoint) => {
-				// new connection
+				// assign connection
 				ConnToClientData conn = _connPool.Get();
 				conn.Set(connId, endPoint);
 				connections[connId] = conn;
 				// callback
 				manager.ServerOnClientConnected(conn);
-				manager.authenticator.OnServerAuth(conn);
+				manager.authenticator.ServerOnAuth(conn);
 			};
 			transport.serverOnData = (connId, data) => {
 				try {
 					ServerOnData(connections[connId], data);
 				}
 				catch (System.Exception e) {
-					System.Console.Error.WriteLine(e);
 					transport.Disconnect(connId);
+
+					// TODO: write a logger
+
+					string logText = $"[{manager.name}] '{connections[connId].address}' caused an exception and was disconnected\n\n{e}";
+#if GODOT
+					Godot.GD.Print(logText);
+#elif UNITY_ENGINE
+					UnityEngine.Debug.Log(logText);
+#else
+					Console.WriteLine(logText);
+#endif
 				}
 			};
-			transport.serverOnError = error => {
-				manager.ServerOnTransportError(error);
-			};
+			transport.serverOnError = error => manager.ServerOnTransportError(error);
 			transport.serverOnClientDisconnected = (connId, disconnInfo) => {
 				ConnToClientData conn = connections[connId];
 				// callback
@@ -49,13 +58,17 @@
 				_connPool.Return(conn);
 			};
 
+			// clear
 			foreach (ConnToClientData conn in connections.Values) {
 				_connPool.Return(conn);
 			}
 			connections.Clear();
+
+			// start
 			transport.StartServer(port);
 		}
 
+		// May be redundant
 		public void Stop() {
 			transport.StopServer();
 		}
