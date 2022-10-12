@@ -14,7 +14,7 @@ namespace Albedo {
 
 		public readonly Writer writer;
 		public readonly Reader reader;
-		public readonly ITransport transport;
+		public readonly Transport transport;
 		public readonly NetManager manager;
 
 		/// <summary>uId, delegate</summary>
@@ -26,14 +26,7 @@ namespace Albedo {
 		/// <summary>uId, delegate</summary>
 		private readonly Dictionary<ushort, ClientAltMessageHandlerDelegate> _clientAltMessageHandlers;
 
-		#region Abstract
-
-		protected TransportEventData _tempEventData;
-		protected abstract void OnTransportEvent(TransportEventData eventData);
-
-		#endregion
-
-		public DataHandler(ITransport transport, NetManager manager) {
+		public DataHandler(Transport transport, NetManager manager) {
 			writer = new();
 			reader = new();
 			this.transport = transport;

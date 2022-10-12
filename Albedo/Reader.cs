@@ -18,11 +18,6 @@ namespace Albedo {
 			get => _data.Count - _position;
 		}
 
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public void SetPosition(int position) {
-			_position = position;
-		}
-
 		/// <summary>Also sets '_position' to 0</summary>
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public void Set(ArraySegment<byte> data) {
@@ -30,20 +25,10 @@ namespace Albedo {
 			_position = 0;
 		}
 
-		/// <summary>Also sets '_position' to 0</summary>
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public void Set(Writer writer) {
-			Set(writer.Data);
-		}
-
 		public Reader() { }
 
 		public Reader(ArraySegment<byte> data) {
 			Set(data);
-		}
-
-		public Reader(Writer writer) {
-			Set(writer);
 		}
 
 		#region Get

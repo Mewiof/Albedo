@@ -74,6 +74,7 @@
 			switch (type) {
 				case RESPONSE_MESSAGE_TYPE_ACCEPT:
 					OnServerAccepted(reader.GetUInt(), reader);
+					manager.ClientOnAuthenticated();
 					break;
 				case RESPONSE_MESSAGE_TYPE_REJECT:
 					OnServerRejected(reader);
@@ -97,6 +98,7 @@
 		protected void Accept(ConnToClientData conn) {
 			conn.authStage = ConnToClientData.AuthStage.Authenticated;
 			manager.server.SendMessage(conn.id, RESPONSE_MESSAGE_UNIQUE_ID, writer => PutAccept(writer, conn.id), DeliveryMethod.Reliable);
+			manager.ServerOnClientAuthenticated(conn);
 		}
 
 		private static void PutReject(Writer writer) {

@@ -38,20 +38,10 @@ namespace Albedo {
 			_position = 0;
 		}
 
-		/// <summary>Also sets '_position' to 0</summary>
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public void Set(Reader reader) {
-			Set(reader.Data);
-		}
-
 		public Writer() { }
 
 		public Writer(ArraySegment<byte> data) {
 			Set(data);
-		}
-
-		public Writer(Reader reader) {
-			Set(reader);
 		}
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]

@@ -5,15 +5,13 @@
 		private readonly Pool<ConnToClientData> _connPool;
 		public readonly System.Collections.Generic.Dictionary<uint, ConnToClientData> connections;
 
-		public NetServer(ITransport transport, NetManager manager) : base(transport, manager) {
+		public NetServer(Transport transport, NetManager manager) : base(transport, manager) {
 			_connPool = new(() => new(), manager.maxNumOfConnections);
 			connections = new();
 		}
 
 		public void Tick(float delta) {
-			while (transport.ServerTryReceiveEvent(out _tempEventData)) {
-				OnTransportEvent(_tempEventData);
-			}
+			transport.ServerTick();
 			// TODO: avoid using 'foreach' in 'Tick'
 			foreach (ConnToClientData conn in connections.Values) {
 				conn.Tick(ref delta);
@@ -21,6 +19,36 @@
 		}
 
 		public void Start(ushort port) {
+			transport.serverOnClientConnected = (connId, endPoint) => {
+				// new connection
+				ConnToClientData conn = _connPool.Get();
+				conn.Set(connId, endPoint);
+				connections[connId] = conn;
+				// callback
+				manager.ServerOnClientConnected(conn);
+				manager.authenticator.OnServerAuth(conn);
+			};
+			transport.serverOnData = (connId, data) => {
+				try {
+					ServerOnData(connections[connId], data);
+				}
+				catch (System.Exception e) {
+					System.Console.Error.WriteLine(e);
+					transport.Disconnect(connId);
+				}
+			};
+			transport.serverOnError = error => {
+				manager.ServerOnTransportError(error);
+			};
+			transport.serverOnClientDisconnected = (connId, disconnInfo) => {
+				ConnToClientData conn = connections[connId];
+				// callback
+				manager.ServerOnClientDisconnected(conn, disconnInfo);
+				// return
+				_ = connections.Remove(connId);
+				_connPool.Return(conn);
+			};
+
 			foreach (ConnToClientData conn in connections.Values) {
 				_connPool.Return(conn);
 			}
@@ -41,46 +69,5 @@
 			SetMessage(messageUId, serializerDelegate);
 			transport.ServerSend(connId, writer.Data, deliveryMethod);
 		}
-
-		#region Override
-
-		protected override void OnTransportEvent(TransportEventData eventData) {
-			switch (eventData.type) {
-				case TransportEventData.Type.Conn:
-					// new connection
-					ConnToClientData conn = _connPool.Get();
-					conn.Set(eventData.connId, eventData.endPoint);
-					connections[eventData.connId] = conn;
-					// callback
-					manager.OnClientConnected(conn);
-					manager.authenticator.OnServerAuth(conn);
-					return;
-
-				case TransportEventData.Type.Data:
-					try {
-						ServerOnData(connections[eventData.connId], eventData.segment);
-					}
-					catch (System.Exception e) {
-						// TODO: log
-						transport.Disconnect(eventData.connId);
-					}
-					return;
-
-				case TransportEventData.Type.Error:
-					manager.OnServerTransportError(eventData.error);
-					return;
-
-				case TransportEventData.Type.Disconn:
-					conn = connections[eventData.connId];
-					// callback
-					manager.OnClientDisconnected(conn, eventData.disconnInfo);
-					// return
-					_ = connections.Remove(eventData.connId);
-					_connPool.Return(conn);
-					return;
-			}
-		}
-
-		#endregion
 	}
 }

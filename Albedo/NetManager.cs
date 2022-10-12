@@ -19,7 +19,7 @@ namespace Albedo {
 		public string address = LOCAL_ADDRESS;
 		public ushort port = 25500;
 		public int maxNumOfConnections = 4;
-		public ITransport transport;
+		public Transport transport;
 		public NetAuthenticator authenticator;
 
 		/// <summary>Override</summary>
@@ -114,24 +114,30 @@ namespace Albedo {
 		// Server
 
 		/// <summary>Override (called on server)</summary>
-		public virtual void OnClientConnected(ConnToClientData conn) { }
+		public virtual void ServerOnClientConnected(ConnToClientData conn) { }
 
 		/// <summary>Override (called on server)</summary>
-		public virtual void OnServerTransportError(TransportEventData.Error error) { }
+		public virtual void ServerOnClientAuthenticated(ConnToClientData conn) { }
 
 		/// <summary>Override (called on server)</summary>
-		public virtual void OnClientDisconnected(ConnToClientData conn, TransportEventData.DisconnInfo disconnInfo) { }
+		public virtual void ServerOnTransportError(Transport.Error error) { }
+
+		/// <summary>Override (called on server)</summary>
+		public virtual void ServerOnClientDisconnected(ConnToClientData conn, Transport.DisconnInfo disconnInfo) { }
 
 		// Client
 
 		/// <summary>Override (called on client)</summary>
-		public virtual void OnConnected() { }
+		public virtual void ClientOnConnected() { }
 
 		/// <summary>Override (called on client)</summary>
-		public virtual void OnClientTransportError(TransportEventData.Error error) { }
+		public virtual void ClientOnAuthenticated() { }
 
 		/// <summary>Override (called on client)</summary>
-		public virtual void OnDisconnected(TransportEventData.DisconnInfo disconnInfo) { }
+		public virtual void ClientOnTransportError(Transport.Error error) { }
+
+		/// <summary>Override (called on client)</summary>
+		public virtual void ClientOnDisconnected(Transport.DisconnInfo disconnInfo) { }
 
 		#endregion
 

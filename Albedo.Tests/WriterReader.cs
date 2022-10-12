@@ -12,7 +12,7 @@
 			writer.PutByte(byte.MinValue);
 			writer.PutByte(byte.MaxValue);
 
-			Reader reader = new(writer);
+			Reader reader = new(writer.Data);
 
 			Assert.Multiple(() => {
 				Assert.That(reader.GetByte(), Is.EqualTo(byte.MinValue));
@@ -28,7 +28,7 @@
 			writer.PutSByte(sbyte.MinValue);
 			writer.PutSByte(sbyte.MaxValue);
 
-			Reader reader = new(writer);
+			Reader reader = new(writer.Data);
 
 			Assert.Multiple(() => {
 				Assert.That(reader.GetSByte(), Is.EqualTo(sbyte.MinValue));
@@ -44,7 +44,7 @@
 			writer.PutBool(false);
 			writer.PutBool(true);
 
-			Reader reader = new(writer);
+			Reader reader = new(writer.Data);
 
 			Assert.Multiple(() => {
 				Assert.That(reader.GetBool(), Is.EqualTo(false));
@@ -60,7 +60,7 @@
 			writer.PutShort(short.MinValue);
 			writer.PutShort(short.MaxValue);
 
-			Reader reader = new(writer);
+			Reader reader = new(writer.Data);
 
 			Assert.Multiple(() => {
 				Assert.That(reader.GetShort(), Is.EqualTo(short.MinValue));
@@ -76,7 +76,7 @@
 			writer.PutUShort(ushort.MinValue);
 			writer.PutUShort(ushort.MaxValue);
 
-			Reader reader = new(writer);
+			Reader reader = new(writer.Data);
 
 			Assert.Multiple(() => {
 				Assert.That(reader.GetUShort(), Is.EqualTo(ushort.MinValue));
@@ -92,7 +92,7 @@
 			writer.PutChar(' ');
 			writer.PutChar('Ё');
 
-			Reader reader = new(writer);
+			Reader reader = new(writer.Data);
 
 			Assert.Multiple(() => {
 				Assert.That(reader.GetChar(), Is.EqualTo(' '));
@@ -108,7 +108,7 @@
 			writer.PutInt(int.MinValue);
 			writer.PutInt(int.MaxValue);
 
-			Reader reader = new(writer);
+			Reader reader = new(writer.Data);
 
 			Assert.Multiple(() => {
 				Assert.That(reader.GetInt(), Is.EqualTo(int.MinValue));
@@ -124,7 +124,7 @@
 			writer.PutUInt(uint.MinValue);
 			writer.PutUInt(uint.MaxValue);
 
-			Reader reader = new(writer);
+			Reader reader = new(writer.Data);
 
 			Assert.Multiple(() => {
 				Assert.That(reader.GetUInt(), Is.EqualTo(uint.MinValue));
@@ -140,7 +140,7 @@
 			writer.PutFloat(float.MinValue);
 			writer.PutFloat(float.MaxValue);
 
-			Reader reader = new(writer);
+			Reader reader = new(writer.Data);
 
 			Assert.Multiple(() => {
 				Assert.That(reader.GetFloat(), Is.EqualTo(float.MinValue));
@@ -156,7 +156,7 @@
 			writer.PutLong(long.MinValue);
 			writer.PutLong(long.MaxValue);
 
-			Reader reader = new(writer);
+			Reader reader = new(writer.Data);
 
 			Assert.Multiple(() => {
 				Assert.That(reader.GetLong(), Is.EqualTo(long.MinValue));
@@ -172,7 +172,7 @@
 			writer.PutULong(ulong.MinValue);
 			writer.PutULong(ulong.MaxValue);
 
-			Reader reader = new(writer);
+			Reader reader = new(writer.Data);
 
 			Assert.Multiple(() => {
 				Assert.That(reader.GetULong(), Is.EqualTo(ulong.MinValue));
@@ -188,7 +188,7 @@
 			writer.PutDouble(double.MinValue);
 			writer.PutDouble(double.MaxValue);
 
-			Reader reader = new(writer);
+			Reader reader = new(writer.Data);
 
 			Assert.Multiple(() => {
 				Assert.That(reader.GetDouble(), Is.EqualTo(double.MinValue));
@@ -206,7 +206,7 @@
 			writer.PutString("123456789", 8);
 			writer.PutString("123456789");
 
-			Reader reader = new(writer);
+			Reader reader = new(writer.Data);
 
 			Assert.Multiple(() => {
 				Assert.That(reader.GetString(), Is.EqualTo("12345678"));
@@ -224,7 +224,7 @@
 			writer.PutString(null);
 			writer.PutString("اختبار");
 
-			Reader reader = new(writer);
+			Reader reader = new(writer.Data);
 
 			Assert.Multiple(() => {
 				Assert.That(reader.GetString(), Is.EqualTo(string.Empty));
@@ -247,7 +247,7 @@
 			writer.PutRaw(arr);
 			writer.PutRaw(arr);
 
-			Reader reader = new(writer);
+			Reader reader = new(writer.Data);
 
 			Assert.Multiple(() => {
 				Assert.That(reader.GetDataSegment(2).ToArray(), Is.EqualTo(arr));
@@ -274,7 +274,7 @@
 			writer.PutByteArray(arr2);
 			writer.PutByteArray(arr3);
 
-			Reader reader = new(writer);
+			Reader reader = new(writer.Data);
 
 			Assert.Multiple(() => {
 				Assert.That(reader.GetByteArray(), Is.EqualTo(arr1));
@@ -298,7 +298,7 @@
 			writer.PutSByteArray(arr2);
 			writer.PutSByteArray(arr3);
 
-			Reader reader = new(writer);
+			Reader reader = new(writer.Data);
 
 			Assert.Multiple(() => {
 				Assert.That(reader.GetSByteArray(), Is.EqualTo(arr1));
@@ -322,7 +322,7 @@
 			writer.PutBoolArray(arr2);
 			writer.PutBoolArray(arr3);
 
-			Reader reader = new(writer);
+			Reader reader = new(writer.Data);
 
 			Assert.Multiple(() => {
 				Assert.That(reader.GetBoolArray(), Is.EqualTo(arr1));
@@ -346,7 +346,7 @@
 			writer.PutShortArray(arr2);
 			writer.PutShortArray(arr3);
 
-			Reader reader = new(writer);
+			Reader reader = new(writer.Data);
 
 			Assert.Multiple(() => {
 				Assert.That(reader.GetShortArray(), Is.EqualTo(arr1));
@@ -370,7 +370,7 @@
 			writer.PutUShortArray(arr2);
 			writer.PutUShortArray(arr3);
 
-			Reader reader = new(writer);
+			Reader reader = new(writer.Data);
 
 			Assert.Multiple(() => {
 				Assert.That(reader.GetUShortArray(), Is.EqualTo(arr1));
@@ -394,7 +394,7 @@
 			writer.PutIntArray(arr2);
 			writer.PutIntArray(arr3);
 
-			Reader reader = new(writer);
+			Reader reader = new(writer.Data);
 
 			Assert.Multiple(() => {
 				Assert.That(reader.GetIntArray(), Is.EqualTo(arr1));
@@ -418,7 +418,7 @@
 			writer.PutUIntArray(arr2);
 			writer.PutUIntArray(arr3);
 
-			Reader reader = new(writer);
+			Reader reader = new(writer.Data);
 
 			Assert.Multiple(() => {
 				Assert.That(reader.GetUIntArray(), Is.EqualTo(arr1));
@@ -442,7 +442,7 @@
 			writer.PutFloatArray(arr2);
 			writer.PutFloatArray(arr3);
 
-			Reader reader = new(writer);
+			Reader reader = new(writer.Data);
 
 			Assert.Multiple(() => {
 				Assert.That(reader.GetFloatArray(), Is.EqualTo(arr1));
@@ -466,7 +466,7 @@
 			writer.PutLongArray(arr2);
 			writer.PutLongArray(arr3);
 
-			Reader reader = new(writer);
+			Reader reader = new(writer.Data);
 
 			Assert.Multiple(() => {
 				Assert.That(reader.GetLongArray(), Is.EqualTo(arr1));
@@ -490,7 +490,7 @@
 			writer.PutULongArray(arr2);
 			writer.PutULongArray(arr3);
 
-			Reader reader = new(writer);
+			Reader reader = new(writer.Data);
 
 			Assert.Multiple(() => {
 				Assert.That(reader.GetULongArray(), Is.EqualTo(arr1));
@@ -514,7 +514,7 @@
 			writer.PutDoubleArray(arr2);
 			writer.PutDoubleArray(arr3);
 
-			Reader reader = new(writer);
+			Reader reader = new(writer.Data);
 
 			Assert.Multiple(() => {
 				Assert.That(reader.GetDoubleArray(), Is.EqualTo(arr1));
@@ -540,7 +540,7 @@
 			writer.PutStringArray(arr2);
 			writer.PutStringArray(arr3);
 
-			Reader reader = new(writer);
+			Reader reader = new(writer.Data);
 
 			Assert.Multiple(() => {
 				Assert.That(reader.GetStringArray(), Is.EqualTo(arr1));
