@@ -21,6 +21,13 @@
 		public void Start(ushort port) {
 			// reset callbacks
 			transport.serverOnClientConnected = (connId, endPoint) => {
+				// reached 'maxNumOfConnections'?
+				if (connections.Count >= manager.maxNumOfConnections) {
+					// TODO: log
+					transport.Disconnect(connId);
+					return;
+				}
+
 				// assign connection
 				ConnToClientData conn = _connPool.Get();
 				conn.Set(connId, endPoint);
