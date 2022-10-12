@@ -41,7 +41,7 @@
 		// Client
 
 		/// <summary>Client</summary>
-		protected abstract void ClientOnAccepted(uint connId);
+		protected abstract void ClientOnAccepted();
 
 		/// <summary>Client</summary>
 		protected abstract void ClientOnRejected(Reader reader);
@@ -66,12 +66,31 @@
 			});
 		}
 
+		/* Not all transports can guarantee ordered packet delivery, even with
+		 * 'DeliveryMethod.Reliable'. But it is important to us that auth
+		 * response packet always arrives first. Sending response message ("Hey, I got the message <3") back to
+		 * server would add a lot of confusing code, as well as a lot of potential
+		 * bugs. So I decided to solve this problem on client side by adding all but
+		 * the right (auth response) message to queue before authorization and processing it afterwards
+		 * 
+		 * [!] Clear when starting client
+		 */
+		public readonly System.Collections.Generic.Queue<byte[]> dataQueue = new();
+
 		private void Internal_OnResponseMessage(Reader reader) {
 			byte type = reader.GetByte();
 
 			switch (type) {
 				case RESPONSE_MESSAGE_TYPE_ACCEPT:
-					ClientOnAccepted(reader.GetUInt());
+					// get 'connId'
+					manager.client.connId = reader.GetUInt();
+					// callback
+					ClientOnAccepted();
+					// process all unprocessed data
+					while (dataQueue.Count > 0) {
+						byte[] data = dataQueue.Dequeue();
+						manager.client.ClientOnData(new(data, 0, data.Length));
+					}
 					return;
 
 				case RESPONSE_MESSAGE_TYPE_REJECT:

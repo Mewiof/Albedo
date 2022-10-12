@@ -124,6 +124,15 @@ namespace Albedo {
 			reader.Set(segment);
 			ushort messageUId = reader.GetUShort();
 
+			// auth
+			if (manager.client.connId == 0 && messageUId != NetAuthenticator.RESPONSE_MESSAGE_UNIQUE_ID) {
+				writer.SetPosition(0);
+				writer.PutUShort(messageUId);
+				writer.PutRaw(segment.Array);
+				manager.authenticator.dataQueue.Enqueue(writer.Data.Array);
+				return;
+			}
+
 			// with additional data?
 			if (reader.Available > 0) {
 				if (!_clientAltMessageHandlers.TryGetValue(messageUId, out ClientAltMessageHandlerDelegate altHandler)) {

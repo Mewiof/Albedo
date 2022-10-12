@@ -4,6 +4,12 @@
 
 		public NetClient(Transport transport, NetManager manager) : base(transport, manager) { }
 
+		/// <summary>
+		/// Set on successful auth
+		/// <para>[!] transp 'connId' must never be '0'</para>
+		/// </summary>
+		public uint connId = 0;
+
 		// May be redundant
 		public void Tick() {
 			transport.ClientTick();
@@ -18,6 +24,12 @@
 			transport.clientOnData = data => ClientOnData(data);
 			transport.clientOnError = error => manager.ClientOnTransportError(error);
 			transport.clientOnDisconnected = disconnInfo => manager.ClientOnDisconnected(disconnInfo);
+
+			// reset 'connId'
+			connId = 0;
+
+			// clear auth data queue
+			manager.authenticator.dataQueue.Clear();
 
 			// start
 			transport.StartClient(address, port);
