@@ -128,8 +128,8 @@ namespace Albedo {
 			if (manager.client.connId == 0 && messageUId != NetAuthenticator.RESPONSE_MESSAGE_UNIQUE_ID) {
 				writer.SetPosition(0);
 				writer.PutUShort(messageUId);
-				writer.PutRaw(segment.Array);
-				manager.authenticator.dataQueue.Enqueue(writer.Data.Array);
+				writer.PutRaw(reader.GetRemainingDataSegment().ToArray());
+				manager.authenticator.dataQueue.Enqueue(writer.Data.ToArray());
 				return;
 			}
 
