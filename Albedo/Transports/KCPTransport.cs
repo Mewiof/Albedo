@@ -64,6 +64,13 @@ namespace Albedo.Transports {
 			return value == DeliveryMethod.Reliable ? KcpChannel.Reliable : KcpChannel.Unreliable;
 		}
 
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+#pragma warning disable IDE0060 // Remove unused parameter
+		private static Error Convert(ErrorCode value) { // TODO
+			return Error.Unknown;
+		}
+#pragma warning restore IDE0060 // Remove unused parameter
+
 		public override void StartServer(ushort port) {
 			if (IsServer) {
 				throw new Exception($"[{manager.name}->{nameof(KCPTransport)}] Unable to start server (already active)");
@@ -73,7 +80,7 @@ namespace Albedo.Transports {
 				connId => serverOnClientConnected.Invoke((uint)connId, _server.connections[connId].GetRemoteEndPoint()),
 				(connId, data, _) => serverOnData.Invoke((uint)connId, data),
 				connId => serverOnClientDisconnected.Invoke((uint)connId, default), // TODO: convert 'disconnInfo'
-				(connId, errorCode, errorText) => serverOnError.Invoke(default), // TODO: convert 'error'
+				(connId, errorCode, errorText) => serverOnError.Invoke(Convert(errorCode)),
 				dualMode,
 				noDelay,
 				interval,
@@ -96,7 +103,7 @@ namespace Albedo.Transports {
 			_client = new(clientOnConnected,
 				(data, _) => clientOnData.Invoke(data),
 				() => clientOnDisconnected.Invoke(default), // TODO: convert 'disconnInfo'
-				(errorCode, errorText) => clientOnError.Invoke(default)); // TODO: convert 'error'
+				(errorCode, errorText) => clientOnError.Invoke(Convert(errorCode)));
 
 			_client.Connect(address, port,
 				noDelay,

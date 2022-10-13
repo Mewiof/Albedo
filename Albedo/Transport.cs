@@ -6,11 +6,16 @@ namespace Albedo {
 	public abstract class Transport {
 
 		public enum Error { // TODO
-			Unimplemented
+			Unknown
 		}
 
+		/* Some transports may output additional information such
+		 * as reason on disconn.
+		 * 
+		 * It is better to leave it as it is for now
+		 */
 		public enum DisconnInfo { // TODO
-			Unimplemented
+			Unknown
 		}
 
 		public abstract bool IsServer { get; }

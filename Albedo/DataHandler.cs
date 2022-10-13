@@ -126,6 +126,7 @@ namespace Albedo {
 
 			// auth
 			if (manager.client.connId == 0 && messageUId != NetAuthenticator.RESPONSE_MESSAGE_UNIQUE_ID) {
+				// pack & enqueue
 				writer.SetPosition(0);
 				writer.PutUShort(messageUId);
 				writer.PutRaw(reader.GetRemainingDataSegment().ToArray());
