@@ -10,7 +10,7 @@ namespace Albedo {
 		public EndPoint endPoint;
 		// May be redundant, but still better than using '.ToString()' each time
 		/// <summary>Cached 'endPoint.ToString()'</summary>
-		public string address;
+		public string endPointStr;
 
 		/* 'Requested' state to make sure that client will not
 		 * send multiple auth requests while waiting for server decision/response
@@ -59,7 +59,7 @@ namespace Albedo {
 			// assign
 			this.id = id;
 			this.endPoint = endPoint;
-			address = endPoint.ToString();
+			endPointStr = endPoint.ToString();
 			authStage = AuthStage.NotAuthenticated;
 		}
 
