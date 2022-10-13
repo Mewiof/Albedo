@@ -41,11 +41,11 @@
 					ServerOnData(connections[connId], data);
 				}
 				catch (System.Exception e) {
+					string logText = $"[{manager.name}] '{connections[connId].endPointStr}' caused an exception and was disconnected\n\n{e}";
+
 					transport.Disconnect(connId);
 
 					// TODO: write a logger
-
-					string logText = $"[{manager.name}] '{connections[connId].address}' caused an exception and was disconnected\n\n{e}";
 #if GODOT
 					Godot.GD.Print(logText);
 #elif UNITY_ENGINE
