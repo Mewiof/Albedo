@@ -16,6 +16,9 @@ Requirements: `Godot 4`, `.NET 6.0+`.
 - Secure authentication
 - Multiple client/server support
 
+###### ~
+![Example](https://user-images.githubusercontent.com/115415388/195846737-30e1471c-375a-4abd-b6c9-9420b2607104.gif)
+
 ## Simple examples
 
 `NetManager` requires an authenticator. Here is an example of its implementation:
