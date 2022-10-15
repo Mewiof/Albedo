@@ -39,8 +39,7 @@
 			transport.serverOnData = (connId, data) => {
 				try {
 					ServerOnData(connections[connId], data);
-				}
-				catch (System.Exception e) {
+				} catch (System.Exception e) {
 					string logText = $"[{manager.name}] '{connections[connId].endPointStr}' caused an exception and was disconnected\n\n{e}";
 
 					transport.Disconnect(connId);
@@ -51,7 +50,7 @@
 #elif UNITY_ENGINE
 					UnityEngine.Debug.Log(logText);
 #else
-					Console.WriteLine(logText);
+					System.Console.WriteLine(logText);
 #endif
 				}
 			};
