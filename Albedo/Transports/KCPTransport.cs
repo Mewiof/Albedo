@@ -23,7 +23,7 @@ namespace Albedo.Transports {
 		/// <para>'true' by default</para>
 		/// </summary>
 		public bool noDelay = true;
-		/// <summary>'20' by default</summary>
+		/// <summary>'15' by default</summary>
 		public uint interval = 15;
 		/// <summary>'10000' by default</summary>
 		public int timeout = 10000;
