@@ -8,7 +8,7 @@
 		/// Set on successful auth
 		/// <para>[!] transp 'connId' must never be '0'</para>
 		/// </summary>
-		public uint connId = 0;
+		public uint connId;
 
 		// May be redundant
 		public void Tick() {
