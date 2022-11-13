@@ -40,8 +40,11 @@
 
 		// Client
 
-		/// <summary>Client</summary>
-		protected abstract void ClientOnAccepted();
+		/// <summary>
+		/// Client
+		/// <para>'manager.client.connId' is now set, which can be used for identification</para>
+		/// </summary>
+		protected abstract void ClientOnAccepted(Reader reader);
 
 		/// <summary>Client</summary>
 		protected abstract void ClientOnRejected(Reader reader);
@@ -85,7 +88,7 @@
 					// get 'connId'
 					manager.client.connId = reader.GetUInt();
 					// callback
-					ClientOnAccepted();
+					ClientOnAccepted(reader);
 					// process all unprocessed data
 					while (dataQueue.Count > 0) {
 						byte[] data = dataQueue.Dequeue();
@@ -117,9 +120,22 @@
 			writer.PutUInt(connId);
 		}
 
+		private static void PutAccept(Writer writer, uint connId, SerializerDelegate serializerDelegate) {
+			// type & connId
+			PutAccept(writer, connId);
+			// additional data
+			serializerDelegate.Invoke(writer);
+		}
+
 		protected void Accept(ConnToClientData conn) {
 			conn.authStage = ConnToClientData.AuthStage.Authenticated;
 			manager.server.SendMessage(conn.id, RESPONSE_MESSAGE_UNIQUE_ID, writer => PutAccept(writer, conn.id), DeliveryMethod.Reliable); // 7 bytes
+		}
+
+		/// <param name="serializerDelegate">Additional data</param>
+		protected void Accept(ConnToClientData conn, SerializerDelegate serializerDelegate) {
+			conn.authStage = ConnToClientData.AuthStage.Authenticated;
+			manager.server.SendMessage(conn.id, RESPONSE_MESSAGE_UNIQUE_ID, writer => PutAccept(writer, conn.id, serializerDelegate), DeliveryMethod.Reliable);
 		}
 
 		// 1 byte
@@ -146,6 +162,7 @@
 			DelayedDisconnect(conn);
 		}
 
+		/// <param name="serializerDelegate">Additional data</param>
 		protected void Reject(ConnToClientData conn, SerializerDelegate serializerDelegate) {
 			manager.server.SendMessage(conn.id, RESPONSE_MESSAGE_UNIQUE_ID, writer => PutReject(writer, serializerDelegate), DeliveryMethod.Reliable); // 3 bytes + custom data
 			DelayedDisconnect(conn);
