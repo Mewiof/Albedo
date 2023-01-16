@@ -23,6 +23,10 @@ namespace Albedo {
 
 		public AuthStage authStage;
 
+		/* TODO: the 'partial' modifier seems to make 'additionalData'
+		 * redundant. We should either make this class 'sealed' or
+		 * remove 'additionalData'
+		 */
 		/// <summary>Can be used to assign custom additional data to connection</summary>
 		public object additionalData;
 
