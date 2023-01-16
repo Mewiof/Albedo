@@ -100,8 +100,7 @@ namespace Albedo {
 					throw new Exception($"[{manager.name}] Received multiple authorization requests");
 				}
 				sender.authStage = ConnToClientData.AuthStage.Requested;
-			}
-			else if (sender.authStage != ConnToClientData.AuthStage.Authenticated) {
+			} else if (sender.authStage != ConnToClientData.AuthStage.Authenticated) {
 				throw new Exception($"[{manager.name}] Received unauthorized message");
 			}
 
