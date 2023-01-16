@@ -4,7 +4,7 @@ using System.Net;
 
 namespace Albedo {
 
-	public class ConnToClientData {
+	public partial class ConnToClientData {
 
 		public uint id;
 		public EndPoint endPoint;
@@ -22,6 +22,9 @@ namespace Albedo {
 		}
 
 		public AuthStage authStage;
+
+		/// <summary>Can be used to assign custom additional data to connection</summary>
+		public object additionalData;
 
 		/* Server may need to call some functions with delay on main thread
 		 * (e.g., to ~run timeout~ when authenticating or to give some time for
@@ -61,6 +64,7 @@ namespace Albedo {
 			this.endPoint = endPoint;
 			endPointStr = endPoint.ToString();
 			authStage = AuthStage.NotAuthenticated;
+			additionalData = null;
 		}
 
 		public void Tick(ref float delta) {
