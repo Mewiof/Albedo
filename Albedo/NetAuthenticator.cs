@@ -4,7 +4,7 @@
 
 		public const ushort
 			REQUEST_MESSAGE_UNIQUE_ID = ushort.MaxValue,
-			RESPONSE_MESSAGE_UNIQUE_ID = ushort.MaxValue - 1;
+			RESPONSE_MESSAGE_UNIQUE_ID = ushort.MaxValue;
 
 		public const byte
 			RESPONSE_MESSAGE_TYPE_REJECT = 0,
