@@ -1,6 +1,6 @@
 ﻿namespace Albedo {
 
-	public class NetClient : DataHandler {
+	public partial class NetClient : DataHandler {
 
 		public NetClient(Transport transport, NetManager manager) : base(transport, manager) { }
 

@@ -1,6 +1,8 @@
-﻿namespace Albedo {
+﻿using UnityEngine;
 
-	public abstract class NetAuthenticator {
+namespace Albedo {
+
+	public abstract class NetAuthenticator : MonoBehaviour {
 
 		public const ushort
 			REQUEST_MESSAGE_UNIQUE_ID = ushort.MaxValue,

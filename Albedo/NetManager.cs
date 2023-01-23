@@ -1,8 +1,10 @@
 ﻿using System;
+using UnityEngine;
 
 namespace Albedo {
 
-	public class NetManager {
+	[DefaultExecutionOrder(-1000)]
+	public class NetManager : MonoBehaviour {
 
 		public const string LOCAL_ADDRESS = "127.0.0.1";
 
@@ -12,10 +14,11 @@ namespace Albedo {
 		public NetClient client;
 
 		/// <summary>Read-only</summary>
+		[HideInInspector]
 		public bool isServer, isClient;
 
 		/// <summary>For debugging</summary>
-		public string name = nameof(NetManager);
+		public string debugName = nameof(NetManager);
 		public string address = LOCAL_ADDRESS;
 		/// <summary>'25500' by default</summary>
 		public ushort port = 25500;
@@ -24,16 +27,16 @@ namespace Albedo {
 		public Transport transport;
 		public NetAuthenticator authenticator;
 
-		/// <summary>Override (called on server and client when invoking 'Init')</summary>
+		/// <summary>Override. Called on server and client</summary>
 		protected virtual void OnRegisterMessageHandlers() { }
 
 		public virtual void Init() {
 			if (transport == null) {
-				throw new Exception($"[{name}] '{nameof(transport)}' is null");
+				throw new Exception($"[{debugName}] '{nameof(transport)}' is null");
 			}
 
 			if (authenticator == null) {
-				throw new Exception($"[{name}] '{nameof(authenticator)}' is null");
+				throw new Exception($"[{debugName}] '{nameof(authenticator)}' is null");
 			}
 
 			server = new(transport, this);
@@ -55,105 +58,76 @@ namespace Albedo {
 
 		#region Start / Stop
 
-		public virtual void StartServer(ushort port) {
+		public void StartServer(ushort port) {
 			if (isServer) {
-				throw new Exception($"[{name}] Unable to start server (already active)");
+				throw new Exception(Utils.GetLogText(debugName, "Unable to start server (already active)"));
 			}
-			server.Start(port);
 			isServer = true;
-			ServerOnStarted();
+			server.Start(port);
 		}
 
 		public void StartServer() {
 			StartServer(port);
 		}
 
-		public virtual void StopServer() {
+		public void StopServer() {
 			if (!isServer) {
-				throw new Exception($"[{name}] Unable to stop server (inactive)");
+				throw new Exception(Utils.GetLogText(debugName, "Unable to stop server (inactive)"));
 			}
-			server.Stop();
 			isServer = false;
-			ServerOnStopped();
+			server.Stop();
 		}
 
-		public virtual void StartClient(string address, ushort port) {
+		public void StartClient(string address, ushort port) {
 			if (isClient) {
-				throw new Exception($"[{name}] Unable to start client (already active)");
+				throw new Exception(Utils.GetLogText(debugName, "Unable to start client (already active)"));
 			}
-			client.Start(address, port);
 			isClient = true;
-			ClientOnStarted();
+			client.Start(address, port);
 		}
 
 		public void StartClient() {
 			StartClient(address, port);
 		}
 
-		public virtual void StopClient() {
+		public void StopClient() {
 			if (!isClient) {
-				throw new Exception($"[{name}] Unable to stop client (inactive)");
+				throw new Exception(Utils.GetLogText(debugName, "Unable to stop client (inactive)"));
 			}
-			client.Stop();
 			isClient = false;
-			ClientOnStopped();
+			client.Stop();
 		}
 
-		public virtual void StartHost() {
+		public void StartHost() {
 			StartServer();
 			StartClient(LOCAL_ADDRESS, port);
 		}
 
-		public virtual void StopHost() {
-			StopClient();
-			StopServer();
+		public void StopHost() {
+			if (isClient) {
+				StopClient();
+			}
+			if (isServer) {
+				StopServer();
+			}
 		}
 
 		#endregion
 
-		#region Callbacks
+		private void Awake() {
+			Init();
+		}
 
-		// Server
+		private void Update() {
+			Tick(Time.unscaledDeltaTime);
+		}
 
-		/// <summary>Override (called on server)</summary>
-		public virtual void ServerOnClientConnected(ConnToClientData conn) { }
+		private void OnApplicationQuit() {
+			StopHost();
+		}
 
-		/// <summary>Override (called on server)</summary>
-		public virtual void ServerOnTransportError(Transport.Error error) { }
-
-		/// <summary>Override (called on server)</summary>
-		public virtual void ServerOnClientDisconnected(ConnToClientData conn, Transport.DisconnInfo disconnInfo) { }
-
-		// Client
-
-		/// <summary>Override (called on client)</summary>
-		public virtual void ClientOnConnected() { }
-
-		/// <summary>Override (called on client)</summary>
-		public virtual void ClientOnTransportError(Transport.Error error) { }
-
-		/// <summary>Override (called on client)</summary>
-		public virtual void ClientOnDisconnected(Transport.DisconnInfo disconnInfo) { }
-
-		#endregion
-
-		#region Start / Stop Callbacks
-
-		// Server
-
-		/// <summary>Override (called on server)</summary>
-		public virtual void ServerOnStarted() { }
-
-		/// <summary>Override (called on server)</summary>
-		public virtual void ServerOnStopped() { }
-
-		// Client
-
-		/// <summary>Override (called on client)</summary>
-		public virtual void ClientOnStarted() { }
-
-		/// <summary>Override (called on client)</summary>
-		public virtual void ClientOnStopped() { }
-		#endregion
+		private void OnDestroy() {
+			StopHost();
+		}
 	}
 }

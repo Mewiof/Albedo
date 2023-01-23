@@ -1,16 +1,17 @@
 ﻿using System;
 using System.Net;
+using UnityEngine;
 
 namespace Albedo {
 
-	public abstract class Transport {
+	public abstract class Transport : MonoBehaviour {
 
 		public enum Error { // TODO
 			Unknown
 		}
 
 		/* Some transports may output additional information such
-		 * as reason on disconn.
+		 * as reason for disconn.
 		 * 
 		 * It is better to leave it as it is for now
 		 */

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Runtime.CompilerServices;
 using kcp2k;
+using UnityEngine;
 
 namespace Albedo.Transports {
 
@@ -8,40 +9,7 @@ namespace Albedo.Transports {
 
 		public readonly NetManager manager;
 
-		/* TODO: write a more detailed '<summary>'. The current one does not reveal all 
-		 * the pros/cons of using a particular value, which may confuse and lead to unexpected transport behavior
-		 */
-
-		// 'kcp2k' configuration
-		/// <summary>
-		/// Listen to IPv6 and IPv4 simultaneously (disable if the platform only supports IPv4)
-		/// <para>'true' by default</para>
-		/// </summary>
-		public bool dualMode = true;
-		/// <summary>
-		/// Recommended to reduce latency (also scales better without buffers getting full)
-		/// <para>'true' by default</para>
-		/// </summary>
-		public bool noDelay = true;
-		/// <summary>'15' by default</summary>
-		public uint interval = 15;
-		/// <summary>'10000' by default</summary>
-		public int timeout = 10000;
-
-		/// <summary>'2' by default</summary>
-		public int fastResend = 2;
-		/// <summary>'false' by default</summary>
-		public bool congestionWindow = false;
-		/// <summary>'4096' by default</summary>
-		public uint sendWindowSize = 4096;
-		/// <summary>'4096' by default</summary>
-		public uint receiveWindowSize = 4096;
-		/// <summary>'Kcp.DEADLINK * 2' by default</summary>
-		public uint maxRetransmits = Kcp.DEADLINK * 2;
-		///// <summary>'true' by default</summary> TODO: add 'nonAlloc' support
-		//public bool nonAlloc = true;
-		/// <summary>'true' by default</summary>
-		public bool maximizeSendReceiveBuffToOSLimit = true;
+		[SerializeField] private KcpConfig _config = new();
 
 		public KCPTransport(NetManager manager) {
 			this.manager = manager;
@@ -73,31 +41,22 @@ namespace Albedo.Transports {
 
 		public override void StartServer(ushort port) {
 			if (IsServer) {
-				throw new Exception($"[{manager.name}->{nameof(KCPTransport)}] Unable to start server (already active)");
+				throw new Exception($"[{manager.debugName}->{nameof(KCPTransport)}] Unable to start server (already active)");
 			}
 
 			_server = new(
-				connId => serverOnClientConnected.Invoke((uint)connId, _server.connections[connId].GetRemoteEndPoint()),
+				connId => serverOnClientConnected.Invoke((uint)connId, _server.connections[connId].remoteEndPoint),
 				(connId, data, _) => serverOnData.Invoke((uint)connId, data),
 				connId => serverOnClientDisconnected.Invoke((uint)connId, default), // TODO: convert 'disconnInfo'
 				(connId, errorCode, errorText) => serverOnError.Invoke(Convert(errorCode)),
-				dualMode,
-				noDelay,
-				interval,
-				fastResend,
-				congestionWindow,
-				sendWindowSize,
-				receiveWindowSize,
-				timeout,
-				maxRetransmits,
-				maximizeSendReceiveBuffToOSLimit);
+				_config);
 
 			_server.Start(port);
 		}
 
 		public override void StartClient(string address, ushort port) {
 			if (IsClient) {
-				throw new Exception($"[{manager.name}->{nameof(KCPTransport)}] Unable to start client (already active)");
+				throw new Exception($"[{manager.debugName}->{nameof(KCPTransport)}] Unable to start client (already active)");
 			}
 
 			_client = new(clientOnConnected,
@@ -105,40 +64,27 @@ namespace Albedo.Transports {
 				() => clientOnDisconnected.Invoke(default), // TODO: convert 'disconnInfo'
 				(errorCode, errorText) => clientOnError.Invoke(Convert(errorCode)));
 
-			_client.Connect(address, port,
-				noDelay,
-				interval,
-				fastResend,
-				congestionWindow,
-				sendWindowSize,
-				receiveWindowSize,
-				timeout,
-				maxRetransmits,
-				maximizeSendReceiveBuffToOSLimit);
+			_client.Connect(address, port, _config);
 		}
 
 		public override void StopServer() {
-			if (_server != null) {
-				_server.Stop();
-			}
+			_server?.Stop();
 			_server = null;
 		}
 
 		public override void StopClient() {
-			if (_client != null) {
-				_client.Disconnect();
-			}
+			_client?.Disconnect();
 			_client = null;
 		}
 
 		public override void ServerSend(uint connId, ArraySegment<byte> segment, DeliveryMethod deliveryMethod) {
 			if (!IsServer) {
-				throw new Exception($"[{manager.name}->{nameof(KCPTransport)}->Server] Unable to send message->{connId} (inactive)");
+				throw new Exception($"[{manager.debugName}->{nameof(KCPTransport)}->Server] Unable to send message->{connId} (inactive)");
 			}
 
 			// 'kcp2k' does the same check when sending but does nothing if 'connId' is wrong, so we have to do it twice
 			if (!_server.connections.ContainsKey((int)connId)) {
-				throw new Exception($"[{manager.name}->{nameof(KCPTransport)}->Server] Unable to send message->{connId} (wrong conn id)");
+				throw new Exception($"[{manager.debugName}->{nameof(KCPTransport)}->Server] Unable to send message->{connId} (wrong conn id)");
 			}
 
 			_server.Send((int)connId, segment, Convert(deliveryMethod));
@@ -146,7 +92,7 @@ namespace Albedo.Transports {
 
 		public override void ClientSend(ArraySegment<byte> segment, DeliveryMethod deliveryMethod) {
 			if (!IsClient) {
-				throw new Exception($"[{manager.name}->{nameof(KCPTransport)}->Client] Unable to send message (inactive)");
+				throw new Exception($"[{manager.debugName}->{nameof(KCPTransport)}->Client] Unable to send message (inactive)");
 			}
 
 			_client.Send(segment, Convert(deliveryMethod));
@@ -162,14 +108,14 @@ namespace Albedo.Transports {
 
 		public override void Disconnect(uint connId) {
 			if (!IsServer) {
-				throw new Exception($"[{manager.name}->{nameof(KCPTransport)}->Server] Unable to disconnect->{connId} (inactive server)");
+				throw new Exception($"[{manager.debugName}->{nameof(KCPTransport)}->Server] Unable to disconnect->{connId} (inactive server)");
 			}
 
 			if (!_server.connections.TryGetValue((int)connId, out KcpServerConnection conn)) {
-				throw new Exception($"[{manager.name}->{nameof(KCPTransport)}->Server] Unable to disconnect->{connId} (wrong conn id)");
+				throw new Exception($"[{manager.debugName}->{nameof(KCPTransport)}->Server] Unable to disconnect->{connId} (wrong conn id)");
 			}
 
-			conn.Disconnect();
+			conn.peer.Disconnect();
 		}
 	}
 }

@@ -40,7 +40,7 @@ namespace Albedo {
 		#region Registration
 
 		private ArgumentException GetAlreadyRegisteredException(uint messageUId, string handlerDelegateName) {
-			return new ArgumentException($"[{manager.name}] Unable to register a message ('{handlerDelegateName}'->{messageUId} is already registered)");
+			return new ArgumentException($"[{manager.debugName}] Unable to register a message ('{handlerDelegateName}'->{messageUId} is already registered)");
 		}
 
 		/// <summary>[!] Server</summary>
@@ -87,7 +87,7 @@ namespace Albedo {
 		#region Read
 
 		private Exception GetUnregisteredMessageException(ushort messageUId, string handlerDelegateName) {
-			return new Exception($"[{manager.name}] Received an unregistered message ('{handlerDelegateName}'->{messageUId})");
+			return new Exception($"[{manager.debugName}] Received an unregistered message ('{handlerDelegateName}'->{messageUId})");
 		}
 
 		public void ServerOnData(ConnToClientData sender, ArraySegment<byte> segment) {
@@ -97,11 +97,11 @@ namespace Albedo {
 			// auth
 			if (messageUId == NetAuthenticator.REQUEST_MESSAGE_UNIQUE_ID) {
 				if (sender.authStage != ConnToClientData.AuthStage.NotAuthenticated) {
-					throw new Exception($"[{manager.name}] Received multiple authorization requests");
+					throw new Exception($"[{manager.debugName}] Received multiple authorization requests");
 				}
 				sender.authStage = ConnToClientData.AuthStage.Requested;
 			} else if (sender.authStage != ConnToClientData.AuthStage.Authenticated) {
-				throw new Exception($"[{manager.name}] Received unauthorized message");
+				throw new Exception($"[{manager.debugName}] Received unauthorized message");
 			}
 
 			// with additional data?

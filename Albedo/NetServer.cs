@@ -1,9 +1,22 @@
-﻿namespace Albedo {
+﻿using UnityEngine;
 
-	public class NetServer : DataHandler {
+namespace Albedo {
+
+	public partial class NetServer : DataHandler {
 
 		private readonly Pool<ConnToClientData> _connPool;
 		public readonly System.Collections.Generic.Dictionary<uint, ConnToClientData> connections;
+
+		#region Events
+		public delegate void ClientConnectedHandler(ConnToClientData conn);
+		public event ClientConnectedHandler OnClientConnected;
+
+		public delegate void TransportErrorHandler(Transport.Error error);
+		public event TransportErrorHandler OnTransportError;
+
+		public delegate void ClientDisconnectedHandler(ConnToClientData conn, Transport.DisconnInfo disconnInfo);
+		public event ClientDisconnectedHandler OnClientDisconnected;
+		#endregion
 
 		public NetServer(Transport transport, NetManager manager) : base(transport, manager) {
 			_connPool = new(() => new(), manager.maxNumOfConnections);
@@ -32,33 +45,27 @@
 				ConnToClientData conn = _connPool.Get();
 				conn.Set(connId, endPoint);
 				connections[connId] = conn;
+
 				// callback
-				manager.ServerOnClientConnected(conn);
+				OnClientConnected.Invoke(conn);
+
 				manager.authenticator.ServerOnAuth(conn);
 			};
 			transport.serverOnData = (connId, data) => {
 				try {
 					ServerOnData(connections[connId], data);
 				} catch (System.Exception e) {
-					string logText = $"[{manager.name}] '{connections[connId].endPointStr}' caused an exception and was disconnected\n\n{e}";
-
 					transport.Disconnect(connId);
 
-					// TODO: write a logger
-#if GODOT
-					Godot.GD.Print(logText);
-#elif UNITY_ENGINE
-					UnityEngine.Debug.Log(logText);
-#else
-					System.Console.WriteLine(logText);
-#endif
+					Debug.Log(Utils.GetLogText(manager.debugName,
+						string.Concat('\'', connections[connId].endPointStr, "' caused an exception and was disconnected\n\n", e)));
 				}
 			};
-			transport.serverOnError = error => manager.ServerOnTransportError(error);
+			transport.serverOnError = error => OnTransportError.Invoke(error);
 			transport.serverOnClientDisconnected = (connId, disconnInfo) => {
 				ConnToClientData conn = connections[connId];
 				// callback
-				manager.ServerOnClientDisconnected(conn, disconnInfo);
+				OnClientDisconnected.Invoke(conn, disconnInfo);
 				// return
 				_ = connections.Remove(connId);
 				_connPool.Return(conn);

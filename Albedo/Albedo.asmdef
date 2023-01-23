@@ -1,0 +1,16 @@
+{
+	"name": "Albedo",
+	"rootNamespace": "Albedo",
+	"references": [
+		"kcp"
+	],
+	"includePlatforms": [],
+	"excludePlatforms": [],
+	"allowUnsafeCode": false,
+	"overrideReferences": false,
+	"precompiledReferences": [],
+	"autoReferenced": true,
+	"defineConstraints": [],
+	"versionDefines": [],
+	"noEngineReferences": false
+}
