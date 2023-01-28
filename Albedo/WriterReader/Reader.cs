@@ -4,7 +4,33 @@ using System.Runtime.CompilerServices;
 
 namespace Albedo {
 
-	public sealed class Reader {
+	public static class ReaderPool {
+
+		private static readonly Pool<PooledReader> _pool = new(() => new(new byte[] { }), 1024);
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static PooledReader Get(ArraySegment<byte> data) {
+			PooledReader result = _pool.Get();
+			result.Set(data);
+			return result;
+		}
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static void Return(PooledReader value) {
+			_pool.Return(value);
+		}
+	}
+
+	public sealed class PooledReader : Reader, IDisposable {
+
+		internal PooledReader(ArraySegment<byte> data) : base(data) { }
+
+		public void Dispose() {
+			ReaderPool.Return(this);
+		}
+	}
+
+	public class Reader {
 
 		private ArraySegment<byte> _data;
 		private int _position;

@@ -15,7 +15,6 @@ namespace Albedo {
 	public abstract class DataHandler {
 
 		public readonly Writer writer;
-		public readonly Reader reader;
 		public readonly Transport transport;
 		public readonly NetManager manager;
 
@@ -30,7 +29,6 @@ namespace Albedo {
 
 		public DataHandler(Transport transport, NetManager manager) {
 			writer = new();
-			reader = new();
 			this.transport = transport;
 			this.manager = manager;
 			_serverMessageHandlers = new();
@@ -95,7 +93,7 @@ namespace Albedo {
 		}
 
 		public void ServerOnData(ConnToClientData sender, ArraySegment<byte> segment) {
-			reader.Set(segment);
+			using PooledReader reader = ReaderPool.Get(segment);
 			ushort messageUId = reader.GetUShort();
 
 			// auth
@@ -109,7 +107,7 @@ namespace Albedo {
 			}
 
 			// try req & res
-			if (TryHandleReqRes(messageUId, sender.id, segment)) {
+			if (TryHandleReqRes(messageUId, sender.id, reader)) {
 				return;
 			}
 
@@ -129,7 +127,7 @@ namespace Albedo {
 		}
 
 		public void ClientOnData(ArraySegment<byte> segment) {
-			reader.Set(segment);
+			using PooledReader reader = ReaderPool.Get(segment);
 			ushort messageUId = reader.GetUShort();
 
 			// auth
@@ -143,7 +141,7 @@ namespace Albedo {
 			}
 
 			// try req & res
-			if (TryHandleReqRes(messageUId, 0U, segment)) {
+			if (TryHandleReqRes(messageUId, 0U, reader)) {
 				return;
 			}
 
@@ -466,17 +464,13 @@ namespace Albedo {
 			}
 		}
 
-		private bool TryHandleReqRes(ushort messageUId, uint connId, ArraySegment<byte> segment) {
-			// TODO: we allocate a new reader at every request!
-
+		private bool TryHandleReqRes(ushort messageUId, uint connId, Reader reader) {
 			if (messageUId == REQUEST_MESSAGE_U_ID) {
-				Reader reader = new(segment.ToArray());
 				HandleRequest(connId, reader);
 				return true;
 			}
 
 			if (messageUId == RESPONSE_MESSAGE_U_ID) {
-				Reader reader = new(segment.ToArray());
 				HandleResponse(connId, reader);
 				return true;
 			}
