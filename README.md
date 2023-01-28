@@ -4,7 +4,7 @@
 
 [Discord](https://discord.gg/Gg8bKVB7fs) (not related to this repository)
 
-Requirements: `Godot 4`, `.NET 6.0+`.
+Requirements: `Unity 2021 LTS+`, `.NET Standard 2.1`.
 
 ###### Features:
 - Lightweight
@@ -18,6 +18,8 @@ Requirements: `Godot 4`, `.NET 6.0+`.
 
 ###### ~
 ![Example](https://user-images.githubusercontent.com/115415388/195846737-30e1471c-375a-4abd-b6c9-9420b2607104.gif)
+
+# The examples below are outdated. The lib migrates to Unity!!!
 
 ## Simple examples
 
