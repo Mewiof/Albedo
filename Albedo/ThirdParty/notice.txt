@@ -7,3 +7,8 @@ License: MIT
 Name: System.Runtime.CompilerServices.Unsafe
 Link: https://www.nuget.org/packages/System.Runtime.CompilerServices.Unsafe/
 License: MIT
+
+3.
+Name: UniTask
+Link: https://github.com/Cysharp/UniTask
+License: MIT

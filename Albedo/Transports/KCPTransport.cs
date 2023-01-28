@@ -22,10 +22,10 @@ namespace Albedo.Transports {
 
 		public override bool IsClient => _client != null;
 
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		/*[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		private static DeliveryMethod Convert(KcpChannel value) {
 			return value == KcpChannel.Reliable ? DeliveryMethod.Reliable : DeliveryMethod.Unreliable;
-		}
+		}*/
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		private static KcpChannel Convert(DeliveryMethod value) {
@@ -40,10 +40,6 @@ namespace Albedo.Transports {
 #pragma warning restore IDE0060 // Remove unused parameter
 
 		public override void StartServer(ushort port) {
-			if (IsServer) {
-				throw new Exception($"[{manager.debugName}->{nameof(KCPTransport)}] Unable to start server (already active)");
-			}
-
 			_server = new(
 				connId => serverOnClientConnected.Invoke((uint)connId, _server.connections[connId].remoteEndPoint),
 				(connId, data, _) => serverOnData.Invoke((uint)connId, data),
@@ -55,10 +51,6 @@ namespace Albedo.Transports {
 		}
 
 		public override void StartClient(string address, ushort port) {
-			if (IsClient) {
-				throw new Exception($"[{manager.debugName}->{nameof(KCPTransport)}] Unable to start client (already active)");
-			}
-
 			_client = new(clientOnConnected,
 				(data, _) => clientOnData.Invoke(data),
 				() => clientOnDisconnected.Invoke(default), // TODO: convert 'disconnInfo'
@@ -79,12 +71,12 @@ namespace Albedo.Transports {
 
 		public override void ServerSend(uint connId, ArraySegment<byte> segment, DeliveryMethod deliveryMethod) {
 			if (!IsServer) {
-				throw new Exception($"[{manager.debugName}->{nameof(KCPTransport)}->Server] Unable to send message->{connId} (inactive)");
+				throw new Exception(manager.Logger.GetTaggedText($"[Server] Unable to send a message to '{connId}' (inactive)"));
 			}
 
 			// 'kcp2k' does the same check when sending but does nothing if 'connId' is wrong, so we have to do it twice
 			if (!_server.connections.ContainsKey((int)connId)) {
-				throw new Exception($"[{manager.debugName}->{nameof(KCPTransport)}->Server] Unable to send message->{connId} (wrong conn id)");
+				throw new Exception(manager.Logger.GetTaggedText($"[Server] Unable to send a message to '{connId}' (wrong conn id)"));
 			}
 
 			_server.Send((int)connId, segment, Convert(deliveryMethod));
@@ -92,7 +84,7 @@ namespace Albedo.Transports {
 
 		public override void ClientSend(ArraySegment<byte> segment, DeliveryMethod deliveryMethod) {
 			if (!IsClient) {
-				throw new Exception($"[{manager.debugName}->{nameof(KCPTransport)}->Client] Unable to send message (inactive)");
+				throw new Exception(manager.Logger.GetTaggedText($"[Client] Unable to send a message (inactive)"));
 			}
 
 			_client.Send(segment, Convert(deliveryMethod));
@@ -108,11 +100,11 @@ namespace Albedo.Transports {
 
 		public override void Disconnect(uint connId) {
 			if (!IsServer) {
-				throw new Exception($"[{manager.debugName}->{nameof(KCPTransport)}->Server] Unable to disconnect->{connId} (inactive server)");
+				throw new Exception(manager.Logger.GetTaggedText($"[Server] Unable to disconnect '{connId}' (inactive)"));
 			}
 
 			if (!_server.connections.TryGetValue((int)connId, out KcpServerConnection conn)) {
-				throw new Exception($"[{manager.debugName}->{nameof(KCPTransport)}->Server] Unable to disconnect->{connId} (wrong conn id)");
+				throw new Exception(manager.Logger.GetTaggedText($"[Server] Unable to disconnect '{connId}' (wrong conn id)"));
 			}
 
 			conn.peer.Disconnect();

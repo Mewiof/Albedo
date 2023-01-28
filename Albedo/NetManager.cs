@@ -8,62 +8,52 @@ namespace Albedo {
 
 		public const string LOCAL_ADDRESS = "127.0.0.1";
 
-		/// <summary>Read-only</summary>
-		public NetServer server;
-		/// <summary>Read-only</summary>
-		public NetClient client;
+		public Logger Logger { get; private set; }
 
-		/// <summary>Read-only</summary>
-		[HideInInspector]
-		public bool isServer, isClient;
+		public NetServer Server { get; private set; }
+		public NetClient Client { get; private set; }
 
-		/// <summary>For debugging</summary>
-		public string debugName = nameof(NetManager);
 		public string address = LOCAL_ADDRESS;
-		/// <summary>'25500' by default</summary>
 		public ushort port = 25500;
-		/// <summary>'4' by default</summary>
 		public int maxNumOfConnections = 4;
 		public Transport transport;
 		public NetAuthenticator authenticator;
 
-		/// <summary>Override. Called on server and client</summary>
-		protected virtual void OnRegisterMessageHandlers() { }
+		/// <summary>Override. Called on server and client during manager initialization</summary>
+		protected virtual void OnInit() { }
 
-		public virtual void Init() {
+		internal virtual void Init() {
+			Logger = new(name);
+
 			if (transport == null) {
-				throw new Exception($"[{debugName}] '{nameof(transport)}' is null");
+				throw new Exception(Logger.GetTaggedParamDescText(nameof(transport), "is null"));
 			}
 
 			if (authenticator == null) {
-				throw new Exception($"[{debugName}] '{nameof(authenticator)}' is null");
+				throw new Exception(Logger.GetTaggedParamDescText(nameof(authenticator), "is null"));
 			}
 
-			server = new(transport, this);
-			client = new(transport, this);
+			Server = new(transport, this);
+			Client = new(transport, this);
 
 			authenticator.RegisterMessageHandlers();
 
-			OnRegisterMessageHandlers();
+			OnInit();
 		}
 
-		public virtual void Tick(float delta) {
-			if (isServer) {
-				server.Tick(ref delta);
+		internal virtual void Tick(float delta) {
+			if (transport.IsServer) {
+				Server.Tick(ref delta);
 			}
-			if (isClient) {
-				client.Tick();
+			if (transport.IsClient) {
+				Client.Tick();
 			}
 		}
 
 		#region Start / Stop
 
 		public void StartServer(ushort port) {
-			if (isServer) {
-				throw new Exception(Utils.GetLogText(debugName, "Unable to start server (already active)"));
-			}
-			isServer = true;
-			server.Start(port);
+			Server.Start(port);
 		}
 
 		public void StartServer() {
@@ -71,19 +61,11 @@ namespace Albedo {
 		}
 
 		public void StopServer() {
-			if (!isServer) {
-				throw new Exception(Utils.GetLogText(debugName, "Unable to stop server (inactive)"));
-			}
-			isServer = false;
-			server.Stop();
+			Server.Stop();
 		}
 
 		public void StartClient(string address, ushort port) {
-			if (isClient) {
-				throw new Exception(Utils.GetLogText(debugName, "Unable to start client (already active)"));
-			}
-			isClient = true;
-			client.Start(address, port);
+			Client.Start(address, port);
 		}
 
 		public void StartClient() {
@@ -91,11 +73,7 @@ namespace Albedo {
 		}
 
 		public void StopClient() {
-			if (!isClient) {
-				throw new Exception(Utils.GetLogText(debugName, "Unable to stop client (inactive)"));
-			}
-			isClient = false;
-			client.Stop();
+			Client.Stop();
 		}
 
 		public void StartHost() {
@@ -104,10 +82,10 @@ namespace Albedo {
 		}
 
 		public void StopHost() {
-			if (isClient) {
+			if (transport.IsClient) {
 				StopClient();
 			}
-			if (isServer) {
+			if (transport.IsServer) {
 				StopServer();
 			}
 		}
