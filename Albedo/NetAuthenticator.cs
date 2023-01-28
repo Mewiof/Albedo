@@ -1,6 +1,9 @@
-﻿namespace Albedo {
+﻿using System;
+using UnityEngine;
 
-	public abstract class NetAuthenticator {
+namespace Albedo {
+
+	public abstract class NetAuthenticator : MonoBehaviour {
 
 		public const ushort
 			REQUEST_MESSAGE_UNIQUE_ID = ushort.MaxValue,
@@ -8,7 +11,7 @@
 
 		public const byte
 			RESPONSE_MESSAGE_TYPE_REJECT = 0,
-			RESPONSE_MESSAGE_TYPE_ACCEPT = 1;
+			RESPONSE_MESSAGE_TYPE_ACCEPT = 100;
 
 		/// <summary>
 		/// When disconnecting client, it is important to wait some
@@ -16,7 +19,7 @@
 		/// </summary>
 		public const float DELAY_BEFORE_DISCONN = 1f;
 
-		public readonly NetManager manager;
+		public NetManager manager;
 
 		/// <summary>
 		/// Time for client to send auth request before disconn
@@ -24,47 +27,36 @@
 		/// </summary>
 		public float timeout = 4f;
 
-		public NetAuthenticator(NetManager manager) {
-			this.manager = manager;
-		}
+		/// <summary>
+		/// 'manager.client.connId' is now set, which can be used for identification
+		/// </summary>
+		public Action<Reader> clientOnAccepted;
+		public Action<Reader> clientOnRejected;
 
 		#region Abstract
 
-		// Server
-
 		/// <summary>
 		/// Server
-		/// <para>(use 'Accept()' / 'Reject()' methods)</para>
+		/// <para>Use 'Accept' / 'Reject' methods</para>
 		/// </summary>
 		protected abstract void OnRequestMessage(ConnToClientData conn, Reader reader);
 
-		// Client
-
 		/// <summary>
 		/// Client
-		/// <para>'manager.client.connId' is now set, which can be used for identification</para>
-		/// </summary>
-		protected abstract void ClientOnAccepted(Reader reader);
-
-		/// <summary>Client</summary>
-		protected abstract void ClientOnRejected(Reader reader);
-
-		/// <summary>
-		/// Called on CLIENT at the beginning of auth process
-		/// <para>(use to send custom auth request)</para>
+		/// <para>Called at the beginning of auth process. Can be used to send an auth request</para>
 		/// </summary>
 		public abstract void ClientOnAuth();
 
 		#endregion
 
 		/// <summary>
-		/// Called on SERVER at the beginning of auth process
-		/// <para>(by default starts a countdown to timeout)</para>
+		/// Server
+		/// <para>Called at the beginning of auth process. By default starts a countdown to timeout</para>
 		/// </summary>
 		public virtual void ServerOnAuth(ConnToClientData conn) {
 			conn.AddTask("auth_timeout", timeout, () => {
 				if (conn.authStage != ConnToClientData.AuthStage.Authenticated) {
-					manager.server.transport.Disconnect(conn.id);
+					manager.Server.transport.Disconnect(conn.id);
 				}
 			});
 		}
@@ -80,33 +72,34 @@
 		 */
 		public readonly System.Collections.Generic.Queue<byte[]> dataQueue = new();
 
-		private void Internal_OnResponseMessage(Reader reader) {
+		private void OnResponseMessage(Reader reader) {
 			byte type = reader.GetByte();
 
 			switch (type) {
 				case RESPONSE_MESSAGE_TYPE_ACCEPT:
 					// get 'connId'
-					manager.client.connId = reader.GetUInt();
+					manager.Client.connId = reader.GetUInt();
 					// callback
-					ClientOnAccepted(reader);
+					clientOnAccepted?.Invoke(reader);
 					// process all unprocessed data
 					while (dataQueue.Count > 0) {
 						byte[] data = dataQueue.Dequeue();
-						manager.client.ClientOnData(new(data, 0, data.Length));
+						manager.Client.ClientOnData(new(data, 0, data.Length));
 					}
 					return;
 
 				case RESPONSE_MESSAGE_TYPE_REJECT:
-					ClientOnRejected(reader);
+					// callback
+					clientOnRejected?.Invoke(reader);
 					break;
 			}
 
 			manager.StopClient();
 		}
 
-		public void RegisterMessageHandlers() {
-			manager.server.RegisterMessageHandler(REQUEST_MESSAGE_UNIQUE_ID, OnRequestMessage);
-			manager.client.RegisterMessageHandler(RESPONSE_MESSAGE_UNIQUE_ID, Internal_OnResponseMessage);
+		internal void RegisterMessageHandlers() {
+			manager.Server.RegisterMessageHandler(REQUEST_MESSAGE_UNIQUE_ID, OnRequestMessage);
+			manager.Client.RegisterMessageHandler(RESPONSE_MESSAGE_UNIQUE_ID, OnResponseMessage);
 		}
 
 		// 7 bytes for Accept(), 3 for Reject()
@@ -129,13 +122,13 @@
 
 		protected void Accept(ConnToClientData conn) {
 			conn.authStage = ConnToClientData.AuthStage.Authenticated;
-			manager.server.SendMessage(conn.id, RESPONSE_MESSAGE_UNIQUE_ID, writer => PutAccept(writer, conn.id), DeliveryMethod.Reliable); // 7 bytes
+			manager.Server.SendMessage(conn.id, RESPONSE_MESSAGE_UNIQUE_ID, writer => PutAccept(writer, conn.id), DeliveryMethod.Reliable); // 7 bytes
 		}
 
 		/// <param name="serializerDelegate">Additional data</param>
 		protected void Accept(ConnToClientData conn, SerializerDelegate serializerDelegate) {
 			conn.authStage = ConnToClientData.AuthStage.Authenticated;
-			manager.server.SendMessage(conn.id, RESPONSE_MESSAGE_UNIQUE_ID, writer => PutAccept(writer, conn.id, serializerDelegate), DeliveryMethod.Reliable);
+			manager.Server.SendMessage(conn.id, RESPONSE_MESSAGE_UNIQUE_ID, writer => PutAccept(writer, conn.id, serializerDelegate), DeliveryMethod.Reliable);
 		}
 
 		// 1 byte
@@ -154,17 +147,17 @@
 
 		private void DelayedDisconnect(ConnToClientData conn) {
 			conn.AddTask("delayed_disconnect", DELAY_BEFORE_DISCONN, () =>
-				manager.server.transport.Disconnect(conn.id));
+				manager.Server.transport.Disconnect(conn.id));
 		}
 
 		protected void Reject(ConnToClientData conn) {
-			manager.server.SendMessage(conn.id, RESPONSE_MESSAGE_UNIQUE_ID, writer => PutReject(writer), DeliveryMethod.Reliable); // 3 bytes
+			manager.Server.SendMessage(conn.id, RESPONSE_MESSAGE_UNIQUE_ID, writer => PutReject(writer), DeliveryMethod.Reliable); // 3 bytes
 			DelayedDisconnect(conn);
 		}
 
 		/// <param name="serializerDelegate">Additional data</param>
 		protected void Reject(ConnToClientData conn, SerializerDelegate serializerDelegate) {
-			manager.server.SendMessage(conn.id, RESPONSE_MESSAGE_UNIQUE_ID, writer => PutReject(writer, serializerDelegate), DeliveryMethod.Reliable); // 3 bytes + custom data
+			manager.Server.SendMessage(conn.id, RESPONSE_MESSAGE_UNIQUE_ID, writer => PutReject(writer, serializerDelegate), DeliveryMethod.Reliable); // 3 bytes + custom data
 			DelayedDisconnect(conn);
 		}
 

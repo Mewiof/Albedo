@@ -1,159 +1,111 @@
 ﻿using System;
+using UnityEngine;
 
 namespace Albedo {
 
-	public class NetManager {
+	[DefaultExecutionOrder(-1000)]
+	public class NetManager : MonoBehaviour {
 
 		public const string LOCAL_ADDRESS = "127.0.0.1";
 
-		/// <summary>Read-only</summary>
-		public NetServer server;
-		/// <summary>Read-only</summary>
-		public NetClient client;
+		public Logger Logger { get; private set; }
 
-		/// <summary>Read-only</summary>
-		public bool isServer, isClient;
+		public NetServer Server { get; private set; }
+		public NetClient Client { get; private set; }
 
-		/// <summary>For debugging</summary>
-		public string name = nameof(NetManager);
 		public string address = LOCAL_ADDRESS;
-		/// <summary>'25500' by default</summary>
 		public ushort port = 25500;
-		/// <summary>'4' by default</summary>
 		public int maxNumOfConnections = 4;
 		public Transport transport;
 		public NetAuthenticator authenticator;
 
-		/// <summary>Override (called on server and client when invoking 'Init')</summary>
-		protected virtual void OnRegisterMessageHandlers() { }
+		/// <summary>Override. Called on server and client during manager initialization</summary>
+		protected virtual void OnInit() { }
 
-		public virtual void Init() {
+		internal virtual void Init() {
+			Logger = new(name);
+
 			if (transport == null) {
-				throw new Exception($"[{name}] '{nameof(transport)}' is null");
+				throw new Exception(Logger.GetTaggedParamDescText(nameof(transport), "is null"));
 			}
 
 			if (authenticator == null) {
-				throw new Exception($"[{name}] '{nameof(authenticator)}' is null");
+				throw new Exception(Logger.GetTaggedParamDescText(nameof(authenticator), "is null"));
 			}
 
-			server = new(transport, this);
-			client = new(transport, this);
+			Server = new(transport, this);
+			Client = new(transport, this);
 
 			authenticator.RegisterMessageHandlers();
 
-			OnRegisterMessageHandlers();
+			OnInit();
 		}
 
-		public virtual void Tick(float delta) {
-			if (isServer) {
-				server.Tick(ref delta);
+		internal virtual void Tick(float delta) {
+			if (transport.IsServer) {
+				Server.Tick(ref delta);
 			}
-			if (isClient) {
-				client.Tick();
+			if (transport.IsClient) {
+				Client.Tick();
 			}
 		}
 
 		#region Start / Stop
 
-		public virtual void StartServer(ushort port) {
-			if (isServer) {
-				throw new Exception($"[{name}] Unable to start server (already active)");
-			}
-			server.Start(port);
-			isServer = true;
-			ServerOnStarted();
+		public void StartServer(ushort port) {
+			Server.Start(port);
 		}
 
 		public void StartServer() {
 			StartServer(port);
 		}
 
-		public virtual void StopServer() {
-			if (!isServer) {
-				throw new Exception($"[{name}] Unable to stop server (inactive)");
-			}
-			server.Stop();
-			isServer = false;
-			ServerOnStopped();
+		public void StopServer() {
+			Server.Stop();
 		}
 
-		public virtual void StartClient(string address, ushort port) {
-			if (isClient) {
-				throw new Exception($"[{name}] Unable to start client (already active)");
-			}
-			client.Start(address, port);
-			isClient = true;
-			ClientOnStarted();
+		public void StartClient(string address, ushort port) {
+			Client.Start(address, port);
 		}
 
 		public void StartClient() {
 			StartClient(address, port);
 		}
 
-		public virtual void StopClient() {
-			if (!isClient) {
-				throw new Exception($"[{name}] Unable to stop client (inactive)");
-			}
-			client.Stop();
-			isClient = false;
-			ClientOnStopped();
+		public void StopClient() {
+			Client.Stop();
 		}
 
-		public virtual void StartHost() {
+		public void StartHost() {
 			StartServer();
 			StartClient(LOCAL_ADDRESS, port);
 		}
 
-		public virtual void StopHost() {
-			StopClient();
-			StopServer();
+		public void StopHost() {
+			if (transport.IsClient) {
+				StopClient();
+			}
+			if (transport.IsServer) {
+				StopServer();
+			}
 		}
 
 		#endregion
 
-		#region Callbacks
+		private void Awake() {
+			Init();
+		}
 
-		// Server
+		private void Update() {
+			Tick(Time.unscaledDeltaTime);
+		}
 
-		/// <summary>Override (called on server)</summary>
-		public virtual void ServerOnClientConnected(ConnToClientData conn) { }
+		private void OnApplicationQuit() {
+			StopHost();
+		}
 
-		/// <summary>Override (called on server)</summary>
-		public virtual void ServerOnTransportError(Transport.Error error) { }
-
-		/// <summary>Override (called on server)</summary>
-		public virtual void ServerOnClientDisconnected(ConnToClientData conn, Transport.DisconnInfo disconnInfo) { }
-
-		// Client
-
-		/// <summary>Override (called on client)</summary>
-		public virtual void ClientOnConnected() { }
-
-		/// <summary>Override (called on client)</summary>
-		public virtual void ClientOnTransportError(Transport.Error error) { }
-
-		/// <summary>Override (called on client)</summary>
-		public virtual void ClientOnDisconnected(Transport.DisconnInfo disconnInfo) { }
-
-		#endregion
-
-		#region Start / Stop Callbacks
-
-		// Server
-
-		/// <summary>Override (called on server)</summary>
-		public virtual void ServerOnStarted() { }
-
-		/// <summary>Override (called on server)</summary>
-		public virtual void ServerOnStopped() { }
-
-		// Client
-
-		/// <summary>Override (called on client)</summary>
-		public virtual void ClientOnStarted() { }
-
-		/// <summary>Override (called on client)</summary>
-		public virtual void ClientOnStopped() { }
-		#endregion
+		private void OnDestroy() {
+			StopHost();
+		}
 	}
 }

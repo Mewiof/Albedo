@@ -44,7 +44,8 @@ namespace Albedo {
 			public Action onCompleted;
 
 			public void Set(string name, float timeLeft, Action onCompleted) {
-				this.name = name; // May be redundant
+				// may be redundant
+				this.name = name;
 				this.timeLeft = timeLeft;
 				this.onCompleted = onCompleted;
 			}
@@ -57,7 +58,7 @@ namespace Albedo {
 
 		/// <summary>Clear and assign</summary>
 		public void Set(uint id, EndPoint endPoint) {
-			// clear
+			// clear tasks
 			for (_i = 0; _i < _activeTasks.Count; _i++) {
 				_taskPool.Return(_activeTasks[_i]);
 			}
@@ -77,6 +78,7 @@ namespace Albedo {
 				_tempTask.timeLeft -= delta;
 				if (_tempTask.timeLeft <= 0f) {
 					// callback
+					// NOTE: an exception will cause the loop to stop, we do not catch it for performance
 					_tempTask.onCompleted.Invoke();
 					// return to pool
 					_taskPool.Return(_tempTask);
@@ -86,7 +88,7 @@ namespace Albedo {
 		}
 
 		public void AddTask(string name, float duration, Action onCompleted) {
-			/* We could check if a task with
+			/* we could check if a task with
 			 * this 'name' already exists, but I don't think it's worth CPU time
 			 */
 			_tempTask = _taskPool.Get();
