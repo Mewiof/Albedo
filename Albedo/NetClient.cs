@@ -19,7 +19,7 @@
 		public event DisconnectedHandler OnDisconnected;
 		#endregion
 
-		public NetClient(Transport transport, NetManager manager) : base(transport, manager) { }
+		public NetClient(Transport transport, Logger logger, NetAuthenticator authenticator) : base(transport, logger, authenticator) { }
 
 		/// <summary>
 		/// Set on successful auth
@@ -40,7 +40,7 @@
 
 		public void Start(string address, ushort port) {
 			if (transport.IsClient) {
-				manager.Logger.LogWarning("Unable to start client (already active)");
+				logger.LogWarning("Unable to start client (already active)");
 				return;
 			}
 
@@ -49,18 +49,21 @@
 			_stopRequested = false;
 
 			// clear auth data queue
-			manager.authenticator.dataQueue.Clear();
+			ClearClientAuthDataQueue();
 
 			// reset callbacks
 			transport.clientOnConnected = () => {
 				OnConnected?.Invoke();
-				manager.authenticator.ClientOnAuth();
+				authenticator.ClientOnAuth();
 			};
 			transport.clientOnData = data => ClientOnData(data);
 			transport.clientOnError = error => OnTransportError?.Invoke(error);
 			transport.clientOnDisconnected = disconnInfo => {
+				// log
+				logger.Log("Client has been disconnected");
+				// callback
 				OnDisconnected?.Invoke(disconnInfo);
-				manager.Logger.Log("Disconnected");
+				// stop the client if it was not called earlier
 				if (!_stopRequested) {
 					Stop();
 				}
@@ -70,7 +73,7 @@
 			transport.StartClient(address, port);
 
 			// log
-			manager.Logger.Log("Client has been started");
+			logger.Log("Client has been started");
 
 			// callback
 			OnStarted?.Invoke();
@@ -80,20 +83,21 @@
 			_stopRequested = true;
 
 			if (!transport.IsClient) {
-				manager.Logger.LogWarning("Unable to stop client (inactive)");
+				logger.LogWarning("Unable to stop client (inactive)");
 				return;
 			}
 
+			// stop
 			transport.StopClient();
 
 			// log
-			manager.Logger.Log("Client has been stopped");
+			logger.Log("Client has been stopped");
 
 			// callback
 			OnStopped?.Invoke();
 		}
 
-		#region Send Message
+		#region Send
 		public void SendMessage(ushort messageUId, DeliveryMethod deliveryMethod = DeliveryMethod.Reliable) {
 			SetMessage(messageUId);
 			transport.ClientSend(writer.Data, deliveryMethod);
@@ -103,14 +107,14 @@
 			SetMessage(messageUId, serializerDelegate);
 			transport.ClientSend(writer.Data, deliveryMethod);
 		}
-		#endregion
 
 		/// <param name="timeout">Milliseconds</param>
-		public void SendRequest<TRequest>(ushort uId, TRequest request, int timeout, ResponseHandlerDelegate<INetSerializable> handlerDelegate = null, SerializerDelegate extra = null)
+		public void SendRequest<TRequest>(ushort requestUId, TRequest request, int timeout, ResponseHandlerDelegate<INetSerializable> handlerDelegate = null, SerializerDelegate extra = null)
 			where TRequest : struct, INetSerializable {
 
-			CreateAndWriteRequest(writer, uId, request, handlerDelegate, timeout, extra);
+			CreateAndWriteRequest(writer, requestUId, request, handlerDelegate, timeout, extra);
 			transport.ClientSend(writer.Data, DeliveryMethod.Reliable);
 		}
+		#endregion
 	}
 }

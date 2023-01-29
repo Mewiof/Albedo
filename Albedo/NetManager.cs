@@ -15,7 +15,6 @@ namespace Albedo {
 
 		public string address = LOCAL_ADDRESS;
 		public ushort port = 25500;
-		public int maxNumOfConnections = 4;
 		public Transport transport;
 		public NetAuthenticator authenticator;
 
@@ -33,9 +32,11 @@ namespace Albedo {
 				throw new Exception(Logger.GetTaggedParamDescText(nameof(authenticator), "is null"));
 			}
 
-			Server = new(transport, this);
-			Client = new(transport, this);
+			Server = new(transport, Logger, authenticator);
+			Client = new(transport, Logger, authenticator);
 
+			authenticator.server = Server;
+			authenticator.client = Client;
 			authenticator.RegisterMessageHandlers();
 
 			OnInit();

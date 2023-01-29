@@ -12,11 +12,12 @@ namespace Albedo {
 	public delegate void ClientMessageHandlerDelegate();
 	public delegate void ClientAltMessageHandlerDelegate(Reader reader);
 
-	public abstract class DataHandler {
+	public abstract partial class DataHandler {
 
 		public readonly Writer writer;
 		public readonly Transport transport;
-		public readonly NetManager manager;
+		public readonly Logger logger;
+		public readonly NetAuthenticator authenticator;
 
 		/// <summary>uId, delegate</summary>
 		private readonly Dictionary<ushort, ServerMessageHandlerDelegate> _serverMessageHandlers;
@@ -27,10 +28,11 @@ namespace Albedo {
 		/// <summary>uId, delegate</summary>
 		private readonly Dictionary<ushort, ClientAltMessageHandlerDelegate> _clientAltMessageHandlers;
 
-		public DataHandler(Transport transport, NetManager manager) {
+		public DataHandler(Transport transport, Logger logger, NetAuthenticator authenticator) {
 			writer = new();
 			this.transport = transport;
-			this.manager = manager;
+			this.logger = logger;
+			this.authenticator = authenticator;
 			_serverMessageHandlers = new();
 			_serverAltMessageHandlers = new();
 			_clientMessageHandlers = new();
@@ -38,15 +40,21 @@ namespace Albedo {
 		}
 
 		#region Registration
+		private ArgumentException GetAlreadyRegisteredException(ushort messageUId, string handlerDelegateName) {
+			return new ArgumentException(logger.GetTaggedText($"Unable to register a message ('{handlerDelegateName}->{messageUId}' is already registered)"));
+		}
 
-		// TODO: prevent registering system message ids
-
-		private ArgumentException GetAlreadyRegisteredException(uint messageUId, string handlerDelegateName) {
-			return new ArgumentException(manager.Logger.GetTaggedText($"Unable to register a message ('{handlerDelegateName}->{messageUId}' is already registered)"));
+		private void CheckIfRegisteredBySystem(ushort messageUId) {
+			// exclude auth
+			if (messageUId == SystemMessages.INT_REQUEST ||
+				messageUId == SystemMessages.INT_RESPONSE) {
+				throw GetAlreadyRegisteredException(messageUId, "SYSTEM");
+			}
 		}
 
 		/// <summary>[!] Server</summary>
 		public void RegisterMessageHandler(ushort messageUId, ServerMessageHandlerDelegate handler) {
+			CheckIfRegisteredBySystem(messageUId);
 			if (_serverMessageHandlers.ContainsKey(messageUId)) {
 				throw GetAlreadyRegisteredException(messageUId, typeof(ServerMessageHandlerDelegate).Name);
 			}
@@ -55,6 +63,7 @@ namespace Albedo {
 
 		/// <summary>[!] Server</summary>
 		public void RegisterMessageHandler(ushort messageUId, ServerAltMessageHandlerDelegate handler) {
+			CheckIfRegisteredBySystem(messageUId);
 			if (_serverAltMessageHandlers.ContainsKey(messageUId)) {
 				throw GetAlreadyRegisteredException(messageUId, typeof(ServerAltMessageHandlerDelegate).Name);
 			}
@@ -63,6 +72,7 @@ namespace Albedo {
 
 		/// <summary>[!] Client</summary>
 		public void RegisterMessageHandler(ushort messageUId, ClientMessageHandlerDelegate handler) {
+			CheckIfRegisteredBySystem(messageUId);
 			if (_clientMessageHandlers.ContainsKey(messageUId)) {
 				throw GetAlreadyRegisteredException(messageUId, typeof(ClientMessageHandlerDelegate).Name);
 			}
@@ -71,6 +81,7 @@ namespace Albedo {
 
 		/// <summary>[!] Client</summary>
 		public void RegisterMessageHandler(ushort messageUId, ClientAltMessageHandlerDelegate handler) {
+			CheckIfRegisteredBySystem(messageUId);
 			if (_clientAltMessageHandlers.ContainsKey(messageUId)) {
 				throw GetAlreadyRegisteredException(messageUId, typeof(ClientAltMessageHandlerDelegate).Name);
 			}
@@ -83,30 +94,21 @@ namespace Albedo {
 			_ = _clientMessageHandlers.Remove(messageUId);
 			_ = _clientAltMessageHandlers.Remove(messageUId);
 		}
-
 		#endregion
 
 		#region Read
-
 		private Exception GetUnregisteredMessageException(ushort messageUId, string handlerDelegateName) {
-			return new Exception(manager.Logger.GetTaggedText($"Received an unregistered message ('{handlerDelegateName}->{messageUId}')"));
+			return new Exception(logger.GetTaggedText($"Received an unregistered message ({handlerDelegateName}->{messageUId})"));
 		}
 
-		public void ServerOnData(ConnToClientData sender, ArraySegment<byte> segment) {
-			using PooledReader reader = ReaderPool.Get(segment);
+		public void ServerOnData(ConnToClientData sender, ArraySegment<byte> data) {
+			using PooledReader reader = ReaderPool.Get(data);
 			ushort messageUId = reader.GetUShort();
 
 			// auth
-			if (messageUId == NetAuthenticator.REQUEST_MESSAGE_UNIQUE_ID) {
-				if (sender.authStage != ConnToClientData.AuthStage.NotAuthenticated) {
-					throw new Exception(manager.Logger.GetTaggedText("Received multiple auth requests"));
-				}
-				sender.authStage = ConnToClientData.AuthStage.Requested;
-			} else if (sender.authStage != ConnToClientData.AuthStage.Authenticated) {
-				throw new Exception(manager.Logger.GetTaggedText("Received an unauthorized message"));
-			}
+			ServerOnDataAuth(sender, messageUId);
 
-			// try req & res
+			// req & res
 			if (TryHandleReqRes(messageUId, sender.id, reader)) {
 				return;
 			}
@@ -126,21 +128,16 @@ namespace Albedo {
 			handler.Invoke(sender);
 		}
 
-		public void ClientOnData(ArraySegment<byte> segment) {
-			using PooledReader reader = ReaderPool.Get(segment);
+		public void ClientOnData(ArraySegment<byte> data) {
+			using PooledReader reader = ReaderPool.Get(data);
 			ushort messageUId = reader.GetUShort();
 
 			// auth
-			if (manager.Client.connId == 0 && messageUId != NetAuthenticator.RESPONSE_MESSAGE_UNIQUE_ID) {
-				// pack & enqueue
-				writer.SetPosition(0);
-				writer.PutUShort(messageUId);
-				writer.PutRaw(reader.GetRemainingDataSegment().ToArray());
-				manager.authenticator.dataQueue.Enqueue(writer.Data.ToArray());
+			if (TryToQueueDataIfNotAuthorized(messageUId, reader)) {
 				return;
 			}
 
-			// try req & res
+			// req & res
 			if (TryHandleReqRes(messageUId, 0U, reader)) {
 				return;
 			}
@@ -159,11 +156,9 @@ namespace Albedo {
 			}
 			handler.Invoke();
 		}
-
 		#endregion
 
 		#region Write
-
 		/// <summary>Resets the internal 'writer' and writes 'uId' to it</summary>
 		protected void SetMessage(ushort uId) {
 			writer.SetPosition(0);
@@ -175,7 +170,6 @@ namespace Albedo {
 			SetMessage(uId);
 			serializerDelegate.Invoke(writer);
 		}
-
 		#endregion
 
 		#region Req & Res
@@ -368,7 +362,7 @@ namespace Albedo {
 		private uint GetNextRequestId() {
 			return _nextRequestId++;
 		}
-		private void ResetNextRequestId() {
+		protected void ResetNextRequestId() {
 			_nextRequestId = 1U;
 		}
 		#endregion

@@ -7,13 +7,17 @@ namespace Albedo.Transports {
 
 	public sealed class KCPTransport : Transport {
 
-		public readonly NetManager manager;
+		public Logger logger;
+		private Logger Logger {
+			get {
+				if (logger == null) {
+					logger = new(name);
+				}
+				return logger;
+			}
+		}
 
 		[SerializeField] private KcpConfig _config = new();
-
-		public KCPTransport(NetManager manager) {
-			this.manager = manager;
-		}
 
 		private KcpServer _server;
 		private KcpClient _client;
@@ -39,7 +43,7 @@ namespace Albedo.Transports {
 		}
 #pragma warning restore IDE0060 // Remove unused parameter
 
-		public override void StartServer(ushort port) {
+		internal override void StartServer(ushort port) {
 			_server = new(
 				connId => serverOnClientConnected.Invoke((uint)connId, _server.connections[connId].remoteEndPoint),
 				(connId, data, _) => serverOnData.Invoke((uint)connId, data),
@@ -50,7 +54,7 @@ namespace Albedo.Transports {
 			_server.Start(port);
 		}
 
-		public override void StartClient(string address, ushort port) {
+		internal override void StartClient(string address, ushort port) {
 			_client = new(clientOnConnected,
 				(data, _) => clientOnData.Invoke(data),
 				() => clientOnDisconnected.Invoke(default), // TODO: convert 'disconnInfo'
@@ -59,52 +63,52 @@ namespace Albedo.Transports {
 			_client.Connect(address, port, _config);
 		}
 
-		public override void StopServer() {
+		internal override void StopServer() {
 			_server?.Stop();
 			_server = null;
 		}
 
-		public override void StopClient() {
+		internal override void StopClient() {
 			_client?.Disconnect();
 			_client = null;
 		}
 
-		public override void ServerSend(uint connId, ArraySegment<byte> segment, DeliveryMethod deliveryMethod) {
+		internal override void ServerSend(uint connId, ArraySegment<byte> segment, DeliveryMethod deliveryMethod) {
 			if (!IsServer) {
-				throw new Exception(manager.Logger.GetTaggedText($"[Server] Unable to send a message to '{connId}' (inactive)"));
+				throw new Exception(Logger.GetTaggedText($"[Server] Unable to send a message to '{connId}' (inactive)"));
 			}
 
 			// 'kcp2k' does the same check when sending but does nothing if 'connId' is wrong, so we have to do it twice
 			if (!_server.connections.ContainsKey((int)connId)) {
-				throw new Exception(manager.Logger.GetTaggedText($"[Server] Unable to send a message to '{connId}' (wrong conn id)"));
+				throw new Exception(Logger.GetTaggedText($"[Server] Unable to send a message to '{connId}' (wrong conn id)"));
 			}
 
 			_server.Send((int)connId, segment, Convert(deliveryMethod));
 		}
 
-		public override void ClientSend(ArraySegment<byte> segment, DeliveryMethod deliveryMethod) {
+		internal override void ClientSend(ArraySegment<byte> segment, DeliveryMethod deliveryMethod) {
 			if (!IsClient) {
-				throw new Exception(manager.Logger.GetTaggedText($"[Client] Unable to send a message (inactive)"));
+				throw new Exception(Logger.GetTaggedText($"[Client] Unable to send a message (inactive)"));
 			}
 
 			_client.Send(segment, Convert(deliveryMethod));
 		}
 
-		public override void ServerTick() {
+		internal override void ServerTick() {
 			_server.Tick();
 		}
 
-		public override void ClientTick() {
+		internal override void ClientTick() {
 			_client.Tick();
 		}
 
-		public override void Disconnect(uint connId) {
+		internal override void Disconnect(uint connId) {
 			if (!IsServer) {
-				throw new Exception(manager.Logger.GetTaggedText($"[Server] Unable to disconnect '{connId}' (inactive)"));
+				throw new Exception(Logger.GetTaggedText($"[Server] Unable to disconnect '{connId}' (inactive)"));
 			}
 
 			if (!_server.connections.TryGetValue((int)connId, out KcpServerConnection conn)) {
-				throw new Exception(manager.Logger.GetTaggedText($"[Server] Unable to disconnect '{connId}' (wrong conn id)"));
+				throw new Exception(Logger.GetTaggedText($"[Server] Unable to disconnect '{connId}' (wrong conn id)"));
 			}
 
 			conn.peer.Disconnect();

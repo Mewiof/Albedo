@@ -1,6 +1,10 @@
-﻿namespace Albedo {
+﻿using System;
+
+namespace Albedo {
 
 	public partial class NetServer : DataHandler {
+
+		public int maxNumOfConnections = 4;
 
 		/* Cleared & reassigned when connected, returned to the pool when
 		 * disconnected after a callback call
@@ -26,8 +30,8 @@
 		public event ClientDisconnectedHandler OnClientDisconnected;
 		#endregion
 
-		public NetServer(Transport transport, NetManager manager) : base(transport, manager) {
-			_connPool = new(() => new(), manager.maxNumOfConnections);
+		public NetServer(Transport transport, Logger logger, NetAuthenticator authenticator) : base(transport, logger, authenticator) {
+			_connPool = new(() => new(), 1024);
 		}
 
 		public void Tick(ref float delta) {
@@ -39,7 +43,7 @@
 
 		public void Start(ushort port) {
 			if (transport.IsServer) {
-				manager.Logger.LogWarning("Unable to start server (already active)");
+				logger.LogWarning("Unable to start server (already active)");
 				return;
 			}
 
@@ -52,10 +56,11 @@
 			// reset callbacks
 			transport.serverOnClientConnected = (connId, endPoint) => {
 				// reached 'maxNumOfConnections'?
-				if (connections.Count >= manager.maxNumOfConnections) {
+				if (connections.Count >= maxNumOfConnections) {
+					// disconnect & log
 					string endPointStr = endPoint.ToString();
 					transport.Disconnect(connId);
-					manager.Logger.LogWarning(endPointStr, "has been disconnected (reached max num of connections)");
+					logger.LogWarning(endPointStr, "has been disconnected (reached max num of connections)");
 					return;
 				}
 
@@ -68,21 +73,23 @@
 				OnClientConnected?.Invoke(conn);
 
 				// auth
-				manager.authenticator.ServerOnAuth(conn);
+				authenticator.ServerOnAuth(conn);
 			};
 			transport.serverOnData = (connId, data) => {
 				try {
 					ServerOnData(connections[connId], data);
-				} catch (System.Exception e) {
+				} catch (Exception e) {
+					// disconnect & log
 					string endPointStr = connections[connId].endPointStr;
 					transport.Disconnect(connId);
-					manager.Logger.LogWarning(endPointStr, "has been disconnected (caused an exception)\n\n" + e.ToString());
+					logger.LogWarning(endPointStr, "has been disconnected (caused an exception)\n\n" + e.ToString());
 				}
 			};
 			transport.serverOnError = error => OnTransportError?.Invoke(error);
 			transport.serverOnClientDisconnected = (connId, disconnInfo) => {
 				ConnToClientData conn = connections[connId];
 				// callback
+				// NOTE: an exception will cause the following code not to execute, we do not catch it for performance
 				OnClientDisconnected?.Invoke(conn, disconnInfo);
 				// return
 				_ = connections.Remove(connId);
@@ -93,7 +100,7 @@
 			transport.StartServer(port);
 
 			// log
-			manager.Logger.Log("Server has been started");
+			logger.Log("Server has been started");
 
 			// callback
 			OnStarted?.Invoke();
@@ -101,20 +108,25 @@
 
 		public void Stop() {
 			if (!transport.IsServer) {
-				manager.Logger.LogWarning("Unable to stop server (inactive)");
+				logger.LogWarning("Unable to stop server (inactive)");
 				return;
 			}
 
+			// stop
 			transport.StopServer();
 
 			// log
-			manager.Logger.Log("Server has been stopped");
+			logger.Log("Server has been stopped");
 
 			// callback
 			OnStopped?.Invoke();
 		}
 
-		#region Send Message
+		public void Disconnect(uint connId) {
+			transport.Disconnect(connId);
+		}
+
+		#region Send
 		public void SendMessage(uint connId, ushort messageUId, DeliveryMethod deliveryMethod = DeliveryMethod.Reliable) {
 			SetMessage(messageUId);
 			transport.ServerSend(connId, writer.Data, deliveryMethod);
@@ -124,14 +136,14 @@
 			SetMessage(messageUId, serializerDelegate);
 			transport.ServerSend(connId, writer.Data, deliveryMethod);
 		}
-		#endregion
 
 		/// <param name="timeout">Milliseconds</param>
-		public void SendRequest<TRequest>(uint connId, ushort uId, TRequest request, int timeout, ResponseHandlerDelegate<INetSerializable> handlerDelegate = null, SerializerDelegate extra = null)
+		public void SendRequest<TRequest>(uint connId, ushort requestUId, TRequest request, int timeout, ResponseHandlerDelegate<INetSerializable> handlerDelegate = null, SerializerDelegate extra = null)
 			where TRequest : struct, INetSerializable {
 
-			CreateAndWriteRequest(writer, uId, request, handlerDelegate, timeout, extra);
+			CreateAndWriteRequest(writer, requestUId, request, handlerDelegate, timeout, extra);
 			transport.ServerSend(connId, writer.Data, DeliveryMethod.Reliable);
 		}
+		#endregion
 	}
 }
