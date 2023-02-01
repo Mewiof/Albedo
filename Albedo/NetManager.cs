@@ -21,7 +21,7 @@ namespace Albedo {
 		/// <summary>Override. Called on server and client during manager initialization</summary>
 		protected virtual void OnInit() { }
 
-		internal virtual void Init() {
+		private void Init() {
 			Logger = new(name);
 
 			if (transport == null) {
@@ -42,7 +42,7 @@ namespace Albedo {
 			OnInit();
 		}
 
-		internal virtual void Tick(float delta) {
+		private void Tick(float delta) {
 			if (transport.IsServer) {
 				Server.Tick(ref delta);
 			}
@@ -52,45 +52,70 @@ namespace Albedo {
 		}
 
 		#region Start / Stop
-
-		public void StartServer(ushort port) {
+		/// <summary>
+		/// Same as 'Server.Start(<paramref name="port"/>)'
+		/// </summary>
+		public void ServerStart(ushort port) {
 			Server.Start(port);
 		}
 
-		public void StartServer() {
-			StartServer(port);
+		public void ServerStart() {
+			ServerStart(port);
 		}
 
-		public void StopServer() {
+		/// <summary>
+		/// Same as 'Server.Stop()'
+		/// </summary>
+		public void ServerStop() {
 			Server.Stop();
 		}
 
-		public void StartClient(string address, ushort port) {
+		/// <summary>
+		/// Same as 'Client.Start(<paramref name="address"/>, <paramref name="port"/>)'
+		/// </summary>
+		public void ClientStart(string address, ushort port) {
 			Client.Start(address, port);
 		}
 
-		public void StartClient() {
-			StartClient(address, port);
+		public void ClientStart() {
+			ClientStart(address, port);
 		}
 
-		public void StopClient() {
+		/// <summary>
+		/// Same as 'Client.Stop()'
+		/// </summary>
+		public void ClientStop() {
 			Client.Stop();
 		}
 
-		public void StartHost() {
-			StartServer();
-			StartClient(LOCAL_ADDRESS, port);
+		public void HostStart() {
+			ServerStart();
+			ClientStart(LOCAL_ADDRESS, port);
 		}
 
-		public void StopHost() {
+		public void HostStop() {
 			if (transport.IsClient) {
-				StopClient();
+				ClientStop();
 			}
 			if (transport.IsServer) {
-				StopServer();
+				ServerStop();
 			}
 		}
+		#endregion
 
+		#region Req & Res
+		public void ServerRegisterRequest<TRequest, TResponse>(ushort requestUId, RequestHandlerDelegate<TRequest, TResponse> requestHandler, ResponseHandlerDelegate<TResponse> responseHandler = null)
+			where TRequest : struct, INetSerializable
+			where TResponse : struct, INetSerializable {
+
+			Server.RegisterRequestHandler(requestUId, requestHandler);
+			Client.RegisterResponseHandler<TRequest, TResponse>(requestUId, responseHandler);
+		}
+
+		public void ServerUnregisterRequest(ushort requestUId) {
+			Server.UnregisterRequestHandler(requestUId);
+			Client.UnregisterResponseHandler(requestUId);
+		}
 		#endregion
 
 		private void Awake() {
@@ -102,11 +127,11 @@ namespace Albedo {
 		}
 
 		private void OnApplicationQuit() {
-			StopHost();
+			HostStop();
 		}
 
 		private void OnDestroy() {
-			StopHost();
+			HostStop();
 		}
 	}
 }

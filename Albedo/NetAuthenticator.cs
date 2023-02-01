@@ -78,7 +78,10 @@ namespace Albedo {
 			client.Stop();
 		}
 
-		internal void RegisterMessageHandlers() {
+		/// <summary>
+		/// Call the base on override!
+		/// </summary>
+		internal virtual void RegisterMessageHandlers() {
 			server.RegisterMessageHandler(SystemMessages.AUTH_REQUEST, OnRequestMessage);
 			client.RegisterMessageHandler(SystemMessages.AUTH_RESPONSE, OnResponseMessage);
 		}

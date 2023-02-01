@@ -53,6 +53,10 @@ namespace Albedo {
 			}
 			connections.Clear();
 
+			// reset req & res
+			_requestCallbacks.Clear();
+			ResetNextRequestId();
+
 			// reset callbacks
 			transport.serverOnClientConnected = (connId, endPoint) => {
 				// reached 'maxNumOfConnections'?
@@ -135,14 +139,6 @@ namespace Albedo {
 		public void SendMessage(uint connId, ushort messageUId, SerializerDelegate serializerDelegate, DeliveryMethod deliveryMethod = DeliveryMethod.Reliable) {
 			SetMessage(messageUId, serializerDelegate);
 			transport.ServerSend(connId, writer.Data, deliveryMethod);
-		}
-
-		/// <param name="timeout">Milliseconds</param>
-		public void SendRequest<TRequest>(uint connId, ushort requestUId, TRequest request, int timeout, ResponseHandlerDelegate<INetSerializable> handlerDelegate = null, SerializerDelegate extra = null)
-			where TRequest : struct, INetSerializable {
-
-			CreateAndWriteRequest(writer, requestUId, request, handlerDelegate, timeout, extra);
-			transport.ServerSend(connId, writer.Data, DeliveryMethod.Reliable);
 		}
 		#endregion
 	}

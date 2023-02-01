@@ -1,4 +1,6 @@
-﻿namespace Albedo {
+﻿using Cysharp.Threading.Tasks;
+
+namespace Albedo {
 
 	public partial class NetClient : DataHandler {
 
@@ -50,6 +52,10 @@
 
 			// clear auth data queue
 			ClearClientAuthDataQueue();
+
+			// reset req & res
+			_requestCallbacks.Clear();
+			ResetNextRequestId();
 
 			// reset callbacks
 			transport.clientOnConnected = () => {
@@ -109,11 +115,42 @@
 		}
 
 		/// <param name="timeout">Milliseconds</param>
-		public void SendRequest<TRequest>(ushort requestUId, TRequest request, int timeout, ResponseHandlerDelegate<INetSerializable> handlerDelegate = null, SerializerDelegate extra = null)
+		public void SendRequest<TRequest>(ushort requestUId, TRequest request, ResponseHandlerDelegate<INetSerializable> responseHandler = null, int timeout = DEFAULT_REQUEST_TIMEOUT, SerializerDelegate extra = null)
 			where TRequest : struct, INetSerializable {
 
-			CreateAndWriteRequest(writer, requestUId, request, handlerDelegate, timeout, extra);
+			// create & write
+			CreateAndWriteRequest(writer, requestUId, request, responseHandler, timeout, extra);
+			// send
 			transport.ClientSend(writer.Data, DeliveryMethod.Reliable);
+		}
+
+		/// <summary>Waits for response</summary>
+		/// <param name="timeout">Milliseconds</param>
+		public async UniTask<AsyncResponseData<TResponse>> SendRequestAsync<TRequest, TResponse>(ushort requestUId, TRequest request, int timeout = DEFAULT_REQUEST_TIMEOUT, SerializerDelegate extra = null)
+			where TRequest : struct, INetSerializable
+			where TResponse : struct, INetSerializable {
+
+			bool completed = false;
+			AsyncResponseData<TResponse> responseData = default;
+
+			// create & write
+			CreateAndWriteRequest(writer, requestUId, request, (data, statusCode, response) => {
+				if (response is not TResponse) {
+					response = default(TResponse);
+				}
+				responseData = new AsyncResponseData<TResponse>(data, statusCode, (TResponse)response);
+				completed = true;
+			}, timeout, extra);
+
+			// send
+			transport.ClientSend(writer.Data, DeliveryMethod.Reliable);
+
+			// wait for response
+			do {
+				await UniTask.Yield();
+			} while (!completed);
+
+			return responseData;
 		}
 		#endregion
 	}
