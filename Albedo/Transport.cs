@@ -29,7 +29,7 @@ namespace Albedo {
 		internal abstract void ClientSend(ArraySegment<byte> segment, DeliveryMethod deliveryMethod);
 
 		// Server
-		internal Action<uint, EndPoint> serverOnClientConnected;
+		internal Action<uint, IPEndPoint> serverOnClientConnected;
 		internal Action<uint, ArraySegment<byte>> serverOnData;
 		internal Action<Error> serverOnError;
 		internal Action<uint, DisconnInfo> serverOnClientDisconnected;

@@ -1,4 +1,5 @@
 ﻿using System;
+using Cysharp.Threading.Tasks;
 using UnityEngine;
 
 namespace Albedo {
@@ -13,50 +14,62 @@ namespace Albedo {
 			RESPONSE_MESSAGE_TYPE_ACCEPT = 100;
 
 		/// <summary>
-		/// When disconnecting client, it is important to wait some
+		/// When disconnecting a client, it is important to wait some
 		/// time for response message to reach it
 		/// </summary>
-		public const float DELAY_BEFORE_DISCONN = 1f;
+		public const int DELAY_BEFORE_DISCONN = 2000;
 
 		/// <summary>
-		/// Time for client to send auth request before disconn
-		/// <para>(4 seconds by default)</para>
+		/// Milliseconds
+		/// <para>'5000' by default</para>
 		/// </summary>
-		public float timeout = 4f;
+		[Tooltip("Milliseconds\nSet to zero to disable")] public int timeout = 5000;
 
 		/// <summary>
-		/// 'client.connId' is now set, which can be used for identification
+		/// Called on client when a response message is received
+		/// <para>'client.connId' is set before call, which can be used for identification</para>
 		/// </summary>
 		public Action<Reader> clientOnAccepted;
+		/// <summary>
+		/// Called on client when a response message is received
+		/// </summary>
 		public Action<Reader> clientOnRejected;
+
+		private async UniTaskVoid StartTimeoutFor(ConnToClientData conn) {
+			await UniTask.Delay(timeout, ignoreTimeScale: true);
+
+			if (!conn.disconnected && conn.authStage != ConnToClientData.AuthStage.Authenticated) {
+				string endPointStr = conn.address;
+				server.Disconnect(conn.id);
+				server.logger.Log(string.Concat("[Auth] ", Logger.GetParamDescText(endPointStr, "has been timed out")));
+			}
+		}
 
 		#region Abstract
 		/// <summary>
-		/// Server
-		/// <para>Use 'Accept' / 'Reject' methods</para>
+		/// Called on server when a request message is received
+		/// <para>Use 'Accept(<paramref name="conn"/>, [extra])' or 'Reject(<paramref name="conn"/>, [extra])'</para>
+		/// <para>Use 'server.Disconnect(<paramref name="conn"/>)' to disconnect immediately (for spam and the like)</para>
 		/// </summary>
-		protected abstract void OnRequestMessage(ConnToClientData conn, Reader reader);
+		/// <param name="conn">Sender</param>
+		protected abstract void OnRequest(ConnToClientData conn, Reader reader);
 
 		/// <summary>
-		/// Client
-		/// <para>Called at the beginning of auth process. Can be used to send an auth request</para>
+		/// Do not call the base on override
+		/// <para>Called on client at the beginning of auth process. Can be used to send an auth request</para>
 		/// </summary>
-		public abstract void ClientOnAuth();
+		public virtual void ClientOnAuth() { }
 		#endregion
 
 		/// <summary>
-		/// Server
-		/// <para>Called at the beginning of auth process. By default starts a countdown to timeout</para>
+		/// Call the base on override (starts a timeout)!
+		/// <para>Called on server at the beginning of auth process</para>
 		/// </summary>
 		public virtual void ServerOnAuth(ConnToClientData conn) {
-			conn.AddTask("auth_timeout", timeout, () => {
-				if (conn.authStage != ConnToClientData.AuthStage.Authenticated) {
-					server.transport.Disconnect(conn.id);
-				}
-			});
+			StartTimeoutFor(conn).Forget();
 		}
 
-		private void OnResponseMessage(Reader reader) {
+		private void OnResponse(Reader reader) {
 			byte type = reader.GetByte();
 
 			switch (type) {
@@ -79,14 +92,14 @@ namespace Albedo {
 		}
 
 		/// <summary>
-		/// Call the base on override!
+		/// Call the base on override (registers system messages)!
 		/// </summary>
-		internal virtual void RegisterMessageHandlers() {
-			server.RegisterMessageHandler(SystemMessages.AUTH_REQUEST, OnRequestMessage);
-			client.RegisterMessageHandler(SystemMessages.AUTH_RESPONSE, OnResponseMessage);
+		public virtual void OnInit() {
+			server.RegisterMessageHandler(SystemMessages.AUTH_REQUEST, OnRequest);
+			client.RegisterMessageHandler(SystemMessages.AUTH_RESPONSE, OnResponse);
 		}
 
-		// 7 bytes for Accept(), 3 for Reject()
+		// 7 bytes for 'Accept', 3 for 'Reject'
 		#region Accept & Reject
 		// 5 bytes
 		private static void PutAccept(Writer writer, uint connId) {
@@ -96,11 +109,11 @@ namespace Albedo {
 			writer.PutUInt(connId);
 		}
 
-		private static void PutAccept(Writer writer, uint connId, SerializerDelegate serializerDelegate) {
+		private static void PutAccept(Writer writer, uint connId, SerializerDelegate extra) {
 			// type & connId
 			PutAccept(writer, connId);
-			// additional data
-			serializerDelegate.Invoke(writer);
+			// extra
+			extra.Invoke(writer);
 		}
 
 		protected void Accept(ConnToClientData conn) {
@@ -108,10 +121,9 @@ namespace Albedo {
 			server.SendMessage(conn.id, SystemMessages.AUTH_RESPONSE, writer => PutAccept(writer, conn.id), DeliveryMethod.Reliable); // 7 bytes
 		}
 
-		/// <param name="serializerDelegate">Additional data</param>
-		protected void Accept(ConnToClientData conn, SerializerDelegate serializerDelegate) {
+		protected void Accept(ConnToClientData conn, SerializerDelegate extra) {
 			conn.authStage = ConnToClientData.AuthStage.Authenticated;
-			server.SendMessage(conn.id, SystemMessages.AUTH_RESPONSE, writer => PutAccept(writer, conn.id, serializerDelegate), DeliveryMethod.Reliable);
+			server.SendMessage(conn.id, SystemMessages.AUTH_RESPONSE, writer => PutAccept(writer, conn.id, extra), DeliveryMethod.Reliable);
 		}
 
 		// 1 byte
@@ -120,28 +132,21 @@ namespace Albedo {
 			writer.PutByte(RESPONSE_MESSAGE_TYPE_REJECT);
 		}
 
-		// 1 byte + custom data
-		private static void PutReject(Writer writer, SerializerDelegate serializerDelegate) {
+		private static void PutReject(Writer writer, SerializerDelegate extra) {
 			// type
 			writer.PutByte(RESPONSE_MESSAGE_TYPE_REJECT);
-			// additional data
-			serializerDelegate.Invoke(writer);
-		}
-
-		private void DelayedDisconnect(ConnToClientData conn) {
-			conn.AddTask("delayed_disconnect", DELAY_BEFORE_DISCONN, () =>
-				server.transport.Disconnect(conn.id));
+			// extra
+			extra.Invoke(writer);
 		}
 
 		protected void Reject(ConnToClientData conn) {
 			server.SendMessage(conn.id, SystemMessages.AUTH_RESPONSE, writer => PutReject(writer), DeliveryMethod.Reliable); // 3 bytes
-			DelayedDisconnect(conn);
+			server.DelayedDisconnect(conn, DELAY_BEFORE_DISCONN).Forget();
 		}
 
-		/// <param name="serializerDelegate">Additional data</param>
-		protected void Reject(ConnToClientData conn, SerializerDelegate serializerDelegate) {
-			server.SendMessage(conn.id, SystemMessages.AUTH_RESPONSE, writer => PutReject(writer, serializerDelegate), DeliveryMethod.Reliable); // 3 bytes + custom data
-			DelayedDisconnect(conn);
+		protected void Reject(ConnToClientData conn, SerializerDelegate extra) {
+			server.SendMessage(conn.id, SystemMessages.AUTH_RESPONSE, writer => PutReject(writer, extra), DeliveryMethod.Reliable);
+			server.DelayedDisconnect(conn, DELAY_BEFORE_DISCONN).Forget();
 		}
 		#endregion
 	}

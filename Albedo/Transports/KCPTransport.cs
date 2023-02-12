@@ -18,6 +18,15 @@ namespace Albedo.Transports {
 		}
 
 		[SerializeField] private KcpConfig _config = new();
+		[SerializeField] private bool _logInfo;
+		[SerializeField] private bool _logWarnings = true;
+		[SerializeField] private bool _logErrors = true;
+
+		private void ApplyLogSettings() {
+			Log.Info = _logInfo ? text => Logger.Log(string.Concat("[KCP] ", text)) : _ => { };
+			Log.Warning = _logWarnings ? text => Logger.LogWarning(string.Concat("[KCP] ", text)) : _ => { };
+			Log.Error = _logErrors ? text => Logger.LogError(string.Concat("[KCP] ", text)) : _ => { };
+		}
 
 		private KcpServer _server;
 		private KcpClient _client;
@@ -45,7 +54,7 @@ namespace Albedo.Transports {
 
 		internal override void StartServer(ushort port) {
 			_server = new(
-				connId => serverOnClientConnected.Invoke((uint)connId, _server.connections[connId].remoteEndPoint),
+				connId => serverOnClientConnected.Invoke((uint)connId, (System.Net.IPEndPoint)_server.connections[connId].remoteEndPoint),
 				(connId, data, _) => serverOnData.Invoke((uint)connId, data),
 				connId => serverOnClientDisconnected.Invoke((uint)connId, default), // TODO: convert 'disconnInfo'
 				(connId, errorCode, errorText) => serverOnError.Invoke(Convert(errorCode)),
@@ -78,11 +87,6 @@ namespace Albedo.Transports {
 				throw new Exception(Logger.GetTaggedText($"[Server] Unable to send a message to '{connId}' (inactive)"));
 			}
 
-			// 'kcp2k' does the same check when sending but does nothing if 'connId' is wrong, so we have to do it twice
-			if (!_server.connections.ContainsKey((int)connId)) {
-				throw new Exception(Logger.GetTaggedText($"[Server] Unable to send a message to '{connId}' (wrong conn id)"));
-			}
-
 			_server.Send((int)connId, segment, Convert(deliveryMethod));
 		}
 
@@ -108,10 +112,14 @@ namespace Albedo.Transports {
 			}
 
 			if (!_server.connections.TryGetValue((int)connId, out KcpServerConnection conn)) {
-				throw new Exception(Logger.GetTaggedText($"[Server] Unable to disconnect '{connId}' (wrong conn id)"));
+				return;
 			}
 
 			conn.peer.Disconnect();
+		}
+
+		private void Awake() {
+			ApplyLogSettings();
 		}
 	}
 }

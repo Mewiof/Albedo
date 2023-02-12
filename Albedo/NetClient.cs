@@ -115,18 +115,31 @@ namespace Albedo {
 		}
 
 		/// <param name="timeout">Milliseconds</param>
-		public void SendRequest<TRequest>(ushort requestUId, TRequest request, ResponseHandlerDelegate<INetSerializable> responseHandler = null, int timeout = DEFAULT_REQUEST_TIMEOUT, SerializerDelegate extra = null)
+		public void SendRequest<TRequest>(ushort requestUId, TRequest request, ResponseHandlerDelegate<INetSerializable> responseHandler, int timeout = DEFAULT_REQUEST_TIMEOUT)
 			where TRequest : struct, INetSerializable {
 
 			// create & write
-			CreateAndWriteRequest(writer, requestUId, request, responseHandler, timeout, extra);
+			CreateAndWriteRequest(writer, requestUId, request, responseHandler, timeout);
 			// send
 			transport.ClientSend(writer.Data, DeliveryMethod.Reliable);
 		}
 
+		/// <param name="timeout">Milliseconds</param>
+		public void SendRequest<TRequest, TResponse>(ushort requestUId, TRequest request, ResponseHandlerDelegate<TResponse> responseHandler, int timeout = DEFAULT_REQUEST_TIMEOUT)
+			where TRequest : struct, INetSerializable
+			where TResponse : struct, INetSerializable {
+
+			SendRequest(requestUId, request, (data, statusCode, response) => {
+				if (response is not TResponse) {
+					response = default(TResponse);
+				}
+				responseHandler.Invoke(data, statusCode, (TResponse)response);
+			}, timeout);
+		}
+
 		/// <summary>Waits for response</summary>
 		/// <param name="timeout">Milliseconds</param>
-		public async UniTask<AsyncResponseData<TResponse>> SendRequestAsync<TRequest, TResponse>(ushort requestUId, TRequest request, int timeout = DEFAULT_REQUEST_TIMEOUT, SerializerDelegate extra = null)
+		public async UniTask<AsyncResponseData<TResponse>> SendRequestAsync<TRequest, TResponse>(ushort requestUId, TRequest request, int timeout = DEFAULT_REQUEST_TIMEOUT)
 			where TRequest : struct, INetSerializable
 			where TResponse : struct, INetSerializable {
 
@@ -140,7 +153,7 @@ namespace Albedo {
 				}
 				responseData = new AsyncResponseData<TResponse>(data, statusCode, (TResponse)response);
 				completed = true;
-			}, timeout, extra);
+			}, timeout);
 
 			// send
 			transport.ClientSend(writer.Data, DeliveryMethod.Reliable);

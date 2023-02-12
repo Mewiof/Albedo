@@ -164,9 +164,9 @@ namespace Albedo {
 		}
 
 		/// <summary>Resets the internal 'writer' and writes to it</summary>
-		protected void SetMessage(ushort uId, SerializerDelegate serializerDelegate) {
+		protected void SetMessage(ushort uId, SerializerDelegate extra) {
 			SetMessage(uId);
-			serializerDelegate.Invoke(writer);
+			extra.Invoke(writer);
 		}
 		#endregion
 	}

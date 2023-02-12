@@ -249,6 +249,10 @@ namespace Albedo {
 			value.Serialize(this);
 		}
 
+		public object PutUInt(int connectionId) {
+			throw new NotImplementedException();
+		}
+
 		#endregion
 	}
 }

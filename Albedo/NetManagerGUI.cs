@@ -47,13 +47,13 @@ namespace Albedo {
 					}
 				} else if (_manager.transport.IsServer) {
 					if (GUILayout.Button("Stop Server")) {
-						_manager.ServerStop();
+						_manager.Server.Stop();
 					}
 				} else if (_manager.transport.IsClient) {
 					GUILayout.Label("Auth: " + (_manager.Client.connId != 0U));
 					GUILayout.Space(8f);
 					if (GUILayout.Button("Stop Client")) {
-						_manager.ClientStop();
+						_manager.Client.Stop();
 					}
 				} else {
 					if (GUILayout.Button("Start Server")) {

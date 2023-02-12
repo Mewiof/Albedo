@@ -6,21 +6,22 @@ using Cysharp.Threading.Tasks;
 namespace Albedo {
 
 	public enum ReqResStatusCode : byte {
+		Unknown,
 		Unregistered,
 		Timeout,
-		Success
+		Success = 100
 	}
 
 	#region Req
-	public readonly struct RequestHandlerData {
+	public readonly struct RequestData {
 
 		public readonly ushort uId;
 		public readonly uint id;
 		public readonly DataHandler dataHandler;
 		public readonly uint connId;
-		public readonly Reader reader;
+		internal readonly Reader reader;
 
-		public RequestHandlerData(ushort uId, uint id, DataHandler dataHandler, uint connId, Reader reader) {
+		public RequestData(ushort uId, uint id, DataHandler dataHandler, uint connId, Reader reader) {
 			this.uId = uId;
 			this.id = id;
 			this.dataHandler = dataHandler;
@@ -29,51 +30,74 @@ namespace Albedo {
 		}
 	}
 
-	public delegate void RequestHandlingResultDelegate<TResponse>(ReqResStatusCode statusCode, TResponse response, SerializerDelegate extra = null)
+	public delegate void RequestHandlingResultDelegate<TResponse>(TResponse response, ReqResStatusCode statusCode = ReqResStatusCode.Success)
 			where TResponse : struct, INetSerializable;
-	public delegate void RequestHandledDelegate(uint connId, uint requestId, ReqResStatusCode statusCode, INetSerializable response, SerializerDelegate extra);
-	public delegate UniTaskVoid RequestHandlerDelegate<TRequest, TResponse>(RequestHandlerData data, TRequest request, RequestHandlingResultDelegate<TResponse> result)
+	internal delegate void RequestHandledDelegate(uint connId, uint requestId, ReqResStatusCode statusCode, INetSerializable response);
+	// void
+	public delegate void RequestHandlerDelegate<TRequest, TResponse>(RequestData data, TRequest request, RequestHandlingResultDelegate<TResponse> result)
+		where TRequest : struct, INetSerializable
+		where TResponse : struct, INetSerializable;
+	// UniTaskVoid
+	public delegate UniTaskVoid RequestAltHandlerDelegate<TRequest, TResponse>(RequestData data, TRequest request, RequestHandlingResultDelegate<TResponse> result)
 		where TRequest : struct, INetSerializable
 		where TResponse : struct, INetSerializable;
 
-	public interface IRequestHandler {
+	internal interface IRequestHandler {
 
-		public void OnRequest(RequestHandlerData data, RequestHandledDelegate onHandled);
+		public void OnRequest(RequestData data, RequestHandledDelegate onHandled);
 	}
 
-	public readonly struct RequestHandler<TRequest, TResponse> : IRequestHandler
+	internal readonly struct RequestHandler<TRequest, TResponse> : IRequestHandler
 		where TRequest : struct, INetSerializable
 		where TResponse : struct, INetSerializable {
 
-		private readonly RequestHandlerDelegate<TRequest, TResponse> _registeredDelegate;
+		// void
+		private readonly RequestHandlerDelegate<TRequest, TResponse> _registeredHandler;
+		// UniTaskVoid
+		private readonly RequestAltHandlerDelegate<TRequest, TResponse> _registeredAltHandler;
 
-		public RequestHandler(RequestHandlerDelegate<TRequest, TResponse> handlerDelegate) {
-			_registeredDelegate = handlerDelegate;
+		// void
+		public RequestHandler(RequestHandlerDelegate<TRequest, TResponse> handler) {
+			_registeredHandler = handler;
+			_registeredAltHandler = null;
 		}
 
-		public void OnRequest(RequestHandlerData data, RequestHandledDelegate onHandled) {
+		// UniTaskVoid
+		public RequestHandler(RequestAltHandlerDelegate<TRequest, TResponse> altHandler) {
+			_registeredHandler = null;
+			_registeredAltHandler = altHandler;
+		}
+
+		public void OnRequest(RequestData data, RequestHandledDelegate onHandled) {
 			TRequest request = new();
-			if (data.reader != null) {
-				request.Deserialize(data.reader);
+			request.Deserialize(data.reader);
+
+			// void
+			if (_registeredHandler != null) {
+				_registeredHandler.Invoke(data, request, (response, statusCode) =>
+				onHandled.Invoke(data.connId, data.id, statusCode, response));
+
+				return;
 			}
-			_registeredDelegate?.Invoke(data, request, (statusCode, response, extra) =>
-				onHandled.Invoke(data.connId, data.id, statusCode, response, extra)).Forget();
+			// UniTaskVoid
+			_registeredAltHandler.Invoke(data, request, (response, statusCode) =>
+				onHandled.Invoke(data.connId, data.id, statusCode, response)).Forget();
 		}
 	}
 	#endregion
 
 	#region Res
-	public delegate void ResponseHandlerDelegate<TResponse>(ResponseHandlerData data, ReqResStatusCode statusCode, TResponse response)
+	public delegate void ResponseHandlerDelegate<TResponse>(ResponseData data, ReqResStatusCode statusCode, TResponse response)
 			where TResponse : INetSerializable;
 
-	public readonly struct ResponseHandlerData {
+	public readonly struct ResponseData {
 
 		public readonly uint id;
 		public readonly DataHandler dataHandler;
 		public readonly uint connId;
-		public readonly Reader reader;
+		internal readonly Reader reader;
 
-		public ResponseHandlerData(uint id, DataHandler dataHandler, uint connId, Reader reader) {
+		public ResponseData(uint id, DataHandler dataHandler, uint connId, Reader reader) {
 			this.id = id;
 			this.dataHandler = dataHandler;
 			this.connId = connId;
@@ -83,30 +107,24 @@ namespace Albedo {
 
 	public interface IResponseHandler {
 
-		public void OnResponse(ResponseHandlerData data, ReqResStatusCode statusCode, ResponseHandlerDelegate<INetSerializable> handlerDelegate);
-		public bool IsRequestTypeValid(Type value);
+		public void OnResponse(ResponseData data, ReqResStatusCode statusCode, ResponseHandlerDelegate<INetSerializable> handler);
+		public bool ValidateRequestType(Type value);
 	}
 
 	public readonly struct ResponseHandler<TRequest, TResponse> : IResponseHandler
 		where TRequest : struct, INetSerializable
 		where TResponse : struct, INetSerializable {
 
-		private readonly ResponseHandlerDelegate<TResponse> _registeredDelegate;
-
-		public ResponseHandler(ResponseHandlerDelegate<TResponse> handlerDelegate) {
-			_registeredDelegate = handlerDelegate;
-		}
-
-		public void OnResponse(ResponseHandlerData data, ReqResStatusCode statusCode, ResponseHandlerDelegate<INetSerializable> handlerDelegate) {
+		public void OnResponse(ResponseData data, ReqResStatusCode statusCode, ResponseHandlerDelegate<INetSerializable> handler) {
 			TResponse response = new();
-			if (statusCode == ReqResStatusCode.Success && data.reader != null) {
+			if (statusCode == ReqResStatusCode.Success) {
 				response.Deserialize(data.reader);
 			}
-			_registeredDelegate?.Invoke(data, statusCode, response);
-			handlerDelegate?.Invoke(data, statusCode, response);
+
+			handler.Invoke(data, statusCode, response);
 		}
 
-		public bool IsRequestTypeValid(Type value) {
+		public bool ValidateRequestType(Type value) {
 			return typeof(TRequest) == value;
 		}
 	}
@@ -139,11 +157,11 @@ namespace Albedo {
 	public readonly struct AsyncResponseData<TResponse>
 		where TResponse : struct, INetSerializable {
 
-		public readonly ResponseHandlerData data;
+		public readonly ResponseData data;
 		public readonly ReqResStatusCode statusCode;
 		public readonly TResponse response;
 
-		public AsyncResponseData(ResponseHandlerData data, ReqResStatusCode statusCode, TResponse response) {
+		public AsyncResponseData(ResponseData data, ReqResStatusCode statusCode, TResponse response) {
 			this.data = data;
 			this.statusCode = statusCode;
 			this.response = response;
@@ -160,7 +178,11 @@ namespace Albedo {
 		#region Request Handlers
 		private readonly Dictionary<ushort, IRequestHandler> _requestHandlers = new();
 
-		public void RegisterRequestHandler<TRequest, TResponse>(ushort requestUId, RequestHandlerDelegate<TRequest, TResponse> handlerDelegate = null)
+		// void
+		/// <summary>
+		/// Registers a request handler for server
+		/// </summary>
+		public void RegisterRequestHandler<TRequest, TResponse>(ushort requestUId, RequestHandlerDelegate<TRequest, TResponse> handler)
 			where TRequest : struct, INetSerializable
 			where TResponse : struct, INetSerializable {
 
@@ -168,9 +190,27 @@ namespace Albedo {
 				throw new Exception(logger.GetTaggedText($"A request handler with this identifier is already registered ({requestUId})"));
 			}
 
-			_requestHandlers[requestUId] = new RequestHandler<TRequest, TResponse>(handlerDelegate);
+			_requestHandlers[requestUId] = new RequestHandler<TRequest, TResponse>(handler);
 		}
 
+		// UniTaskVoid
+		/// <summary>
+		/// Registers a request handler for server
+		/// </summary>
+		public void RegisterRequestHandler<TRequest, TResponse>(ushort requestUId, RequestAltHandlerDelegate<TRequest, TResponse> altHandler)
+			where TRequest : struct, INetSerializable
+			where TResponse : struct, INetSerializable {
+
+			if (_requestHandlers.ContainsKey(requestUId)) {
+				throw new Exception(logger.GetTaggedText($"A request handler with this identifier is already registered ({requestUId})"));
+			}
+
+			_requestHandlers[requestUId] = new RequestHandler<TRequest, TResponse>(altHandler);
+		}
+
+		/// <summary>
+		/// Unregisters a request handler for server
+		/// </summary>
 		public void UnregisterRequestHandler(ushort requestUId) {
 			_ = _requestHandlers.Remove(requestUId);
 		}
@@ -179,7 +219,7 @@ namespace Albedo {
 		#region Response Handlers
 		private readonly Dictionary<ushort, IResponseHandler> _responseHandlers = new();
 
-		public void RegisterResponseHandler<TRequest, TResponse>(ushort requestUId, ResponseHandlerDelegate<TResponse> handlerDelegate = null)
+		public void RegisterResponseHandler<TRequest, TResponse>(ushort requestUId)
 			where TRequest : struct, INetSerializable
 			where TResponse : struct, INetSerializable {
 
@@ -187,7 +227,7 @@ namespace Albedo {
 				throw new Exception(logger.GetTaggedText($"A response handler with this identifier is already registered ({requestUId})"));
 			}
 
-			_responseHandlers[requestUId] = new ResponseHandler<TRequest, TResponse>(handlerDelegate);
+			_responseHandlers[requestUId] = new ResponseHandler<TRequest, TResponse>();
 		}
 
 		public void UnregisterResponseHandler(ushort requestUId) {
@@ -236,7 +276,7 @@ namespace Albedo {
 		/// <summary>
 		/// Throws an exception to prevent further execution
 		/// </summary>
-		protected void CreateAndWriteRequest<TRequest>(Writer writer, ushort uId, TRequest request, ResponseHandlerDelegate<INetSerializable> handlerDelegate, int timeout, SerializerDelegate extra)
+		protected void CreateAndWriteRequest<TRequest>(Writer writer, ushort uId, TRequest request, ResponseHandlerDelegate<INetSerializable> handlerDelegate, int timeout)
 			where TRequest : struct, INetSerializable {
 
 			if (!_responseHandlers.ContainsKey(uId)) {
@@ -246,7 +286,7 @@ namespace Albedo {
 
 			IResponseHandler responseHandler = _responseHandlers[uId];
 
-			if (!responseHandler.IsRequestTypeValid(typeof(TRequest))) {
+			if (!responseHandler.ValidateRequestType(typeof(TRequest))) {
 				handlerDelegate.Invoke(new(GetNextRequestId(), this, 0U, null), ReqResStatusCode.Unregistered, EmptyMessage.instance);
 				throw new Exception(logger.GetTaggedText("Unable to create a request (invalid type)"));
 			}
@@ -264,7 +304,6 @@ namespace Albedo {
 			writer.PutUInt(requestId);
 			// body
 			writer.Put(request);
-			extra?.Invoke(writer);
 		}
 
 		#region Handle Request
@@ -272,7 +311,7 @@ namespace Albedo {
 		/// Sends a response message
 		/// </summary>
 		/// <param name="connId">Sender</param>
-		private void OnRequestHandled(uint connId, uint requestId, ReqResStatusCode statusCode, INetSerializable response, SerializerDelegate extra) {
+		private void OnRequestHandled(uint connId, uint requestId, ReqResStatusCode statusCode, INetSerializable response) {
 			// reset
 			writer.SetPosition(0);
 			// write
@@ -282,7 +321,6 @@ namespace Albedo {
 			writer.PutByte((byte)statusCode);
 			// body
 			writer.Put(response);
-			extra?.Invoke(writer);
 			// send
 			if (connId > 0) {
 				transport.ServerSend(connId, writer.Data, DeliveryMethod.Reliable);
@@ -292,14 +330,14 @@ namespace Albedo {
 		}
 
 		/// <param name="connId">Sender</param>
-		private void HandleRequest(uint connId, Reader reader) {
+		private void HandleRequest(uint connId, PooledReader reader) {
 			// read header (uId, id)
 			ushort requestUId = reader.GetUShort();
 			uint requestId = reader.GetUInt();
 
 			// unregistered?
 			if (!_requestHandlers.ContainsKey(requestUId)) {
-				OnRequestHandled(connId, requestId, ReqResStatusCode.Unregistered, EmptyMessage.instance, null);
+				OnRequestHandled(connId, requestId, ReqResStatusCode.Unregistered, EmptyMessage.instance);
 				throw new Exception(logger.GetTaggedText($"Received an unregistered request ({requestUId})"));
 			}
 
@@ -308,7 +346,7 @@ namespace Albedo {
 		#endregion
 
 		/// <param name="connId">Sender</param>
-		private void HandleResponse(uint connId, Reader reader) {
+		private void HandleResponse(uint connId, PooledReader reader) {
 			// read header (id, status)
 			uint requestId = reader.GetUInt();
 			ReqResStatusCode statusCode = (ReqResStatusCode)reader.GetByte();
@@ -319,7 +357,7 @@ namespace Albedo {
 		}
 
 		/// <param name="connId">Sender</param>
-		private bool TryHandleReqRes(ushort messageUId, uint connId, Reader reader) {
+		private bool TryHandleReqRes(ushort messageUId, uint connId, PooledReader reader) {
 			if (messageUId == SystemMessages.INT_REQUEST) {
 				HandleRequest(connId, reader);
 				return true;

@@ -37,14 +37,14 @@ namespace Albedo {
 
 			authenticator.server = Server;
 			authenticator.client = Client;
-			authenticator.RegisterMessageHandlers();
+			authenticator.OnInit();
 
 			OnInit();
 		}
 
-		private void Tick(float delta) {
+		private void Tick() {
 			if (transport.IsServer) {
-				Server.Tick(ref delta);
+				Server.Tick();
 			}
 			if (transport.IsClient) {
 				Client.Tick();
@@ -52,69 +52,60 @@ namespace Albedo {
 		}
 
 		#region Start / Stop
-		/// <summary>
-		/// Same as 'Server.Start(<paramref name="port"/>)'
-		/// </summary>
-		public void ServerStart(ushort port) {
+		public void ServerStart() {
 			Server.Start(port);
 		}
 
-		public void ServerStart() {
-			ServerStart(port);
-		}
-
-		/// <summary>
-		/// Same as 'Server.Stop()'
-		/// </summary>
-		public void ServerStop() {
-			Server.Stop();
-		}
-
-		/// <summary>
-		/// Same as 'Client.Start(<paramref name="address"/>, <paramref name="port"/>)'
-		/// </summary>
-		public void ClientStart(string address, ushort port) {
-			Client.Start(address, port);
-		}
-
 		public void ClientStart() {
-			ClientStart(address, port);
-		}
-
-		/// <summary>
-		/// Same as 'Client.Stop()'
-		/// </summary>
-		public void ClientStop() {
-			Client.Stop();
+			Client.Start(address, port);
 		}
 
 		public void HostStart() {
 			ServerStart();
-			ClientStart(LOCAL_ADDRESS, port);
+			Client.Start(LOCAL_ADDRESS, port);
 		}
 
 		public void HostStop() {
 			if (transport.IsClient) {
-				ClientStop();
+				Client.Stop();
 			}
 			if (transport.IsServer) {
-				ServerStop();
+				Server.Stop();
 			}
 		}
 		#endregion
 
 		#region Req & Res
-		public void ServerRegisterRequest<TRequest, TResponse>(ushort requestUId, RequestHandlerDelegate<TRequest, TResponse> requestHandler, ResponseHandlerDelegate<TResponse> responseHandler = null)
+		// void
+		/// <summary>
+		/// Registers a request handler for server and a response handler for client
+		/// </summary>
+		public void ServerRegisterRequestHandler<TRequest, TResponse>(ushort uId, RequestHandlerDelegate<TRequest, TResponse> handler)
 			where TRequest : struct, INetSerializable
 			where TResponse : struct, INetSerializable {
 
-			Server.RegisterRequestHandler(requestUId, requestHandler);
-			Client.RegisterResponseHandler<TRequest, TResponse>(requestUId, responseHandler);
+			Server.RegisterRequestHandler(uId, handler);
+			Client.RegisterResponseHandler<TRequest, TResponse>(uId);
 		}
 
-		public void ServerUnregisterRequest(ushort requestUId) {
-			Server.UnregisterRequestHandler(requestUId);
-			Client.UnregisterResponseHandler(requestUId);
+		// UniTaskVoid
+		/// <summary>
+		/// Registers a request handler for server and a response handler for client
+		/// </summary>
+		public void ServerRegisterRequestHandler<TRequest, TResponse>(ushort uId, RequestAltHandlerDelegate<TRequest, TResponse> altHandler)
+			where TRequest : struct, INetSerializable
+			where TResponse : struct, INetSerializable {
+
+			Server.RegisterRequestHandler(uId, altHandler);
+			Client.RegisterResponseHandler<TRequest, TResponse>(uId);
+		}
+
+		/// <summary>
+		/// Unregisters a request handler for server and client
+		/// </summary>
+		public void ServerUnregisterRequest(ushort uId) {
+			Server.UnregisterRequestHandler(uId);
+			Client.UnregisterResponseHandler(uId);
 		}
 		#endregion
 
@@ -123,7 +114,7 @@ namespace Albedo {
 		}
 
 		private void Update() {
-			Tick(Time.unscaledDeltaTime);
+			Tick();
 		}
 
 		private void OnApplicationQuit() {

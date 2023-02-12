@@ -1,15 +1,11 @@
 ﻿using System;
+using Cysharp.Threading.Tasks;
 
 namespace Albedo {
 
 	public partial class NetServer : DataHandler {
 
 		public int maxNumOfConnections = 4;
-
-		/* Cleared & reassigned when connected, returned to the pool when
-		 * disconnected after a callback call
-		 */
-		private readonly Pool<ConnToClientData> _connPool;
 
 		public readonly System.Collections.Generic.Dictionary<uint, ConnToClientData> connections = new();
 
@@ -30,14 +26,17 @@ namespace Albedo {
 		public event ClientDisconnectedHandler OnClientDisconnected;
 		#endregion
 
-		public NetServer(Transport transport, Logger logger, NetAuthenticator authenticator) : base(transport, logger, authenticator) {
-			_connPool = new(() => new(), 1024);
+		public NetServer(Transport transport, Logger logger, NetAuthenticator authenticator) : base(transport, logger, authenticator) { }
+
+		public void Tick() {
+			transport.ServerTick();
 		}
 
-		public void Tick(ref float delta) {
-			transport.ServerTick();
-			foreach (ConnToClientData conn in connections.Values) {
-				conn.Tick(ref delta);
+		/// <param name="time">Milliseconds</param>
+		public async UniTaskVoid DelayedDisconnect(ConnToClientData conn, int time) {
+			await UniTask.Delay(time, ignoreTimeScale: true);
+			if (!conn.disconnected) {
+				transport.Disconnect(conn.id);
 			}
 		}
 
@@ -48,9 +47,6 @@ namespace Albedo {
 			}
 
 			// clear connection dict
-			foreach (ConnToClientData conn in connections.Values) {
-				_connPool.Return(conn);
-			}
 			connections.Clear();
 
 			// reset req & res
@@ -69,8 +65,7 @@ namespace Albedo {
 				}
 
 				// assign connection
-				ConnToClientData conn = _connPool.Get();
-				conn.Set(connId, endPoint);
+				ConnToClientData conn = new(connId, endPoint);
 				connections[connId] = conn;
 
 				// callback
@@ -84,7 +79,7 @@ namespace Albedo {
 					ServerOnData(connections[connId], data);
 				} catch (Exception e) {
 					// disconnect & log
-					string endPointStr = connections[connId].endPointStr;
+					string endPointStr = connections[connId].address;
 					transport.Disconnect(connId);
 					logger.LogWarning(endPointStr, "has been disconnected (caused an exception)\n\n" + e.ToString());
 				}
@@ -92,12 +87,13 @@ namespace Albedo {
 			transport.serverOnError = error => OnTransportError?.Invoke(error);
 			transport.serverOnClientDisconnected = (connId, disconnInfo) => {
 				ConnToClientData conn = connections[connId];
+				// mark disconnected
+				conn.disconnected = true;
 				// callback
 				// NOTE: an exception will cause the following code not to execute, we do not catch it for performance
 				OnClientDisconnected?.Invoke(conn, disconnInfo);
-				// return
+				// remove
 				_ = connections.Remove(connId);
-				_connPool.Return(conn);
 			};
 
 			// start
@@ -136,8 +132,8 @@ namespace Albedo {
 			transport.ServerSend(connId, writer.Data, deliveryMethod);
 		}
 
-		public void SendMessage(uint connId, ushort messageUId, SerializerDelegate serializerDelegate, DeliveryMethod deliveryMethod = DeliveryMethod.Reliable) {
-			SetMessage(messageUId, serializerDelegate);
+		public void SendMessage(uint connId, ushort messageUId, SerializerDelegate extra, DeliveryMethod deliveryMethod = DeliveryMethod.Reliable) {
+			SetMessage(messageUId, extra);
 			transport.ServerSend(connId, writer.Data, deliveryMethod);
 		}
 		#endregion
