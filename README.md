@@ -2,7 +2,7 @@
 
 > [:warning:] Conceived as an experimental lib for my experimental MMO project. I don't guarantee continuous repository support or avoiding breaking changes.
 
-[Discord](https://discord.gg/Gg8bKVB7fs) (not related to this repository)
+[Discord](https://discord.gg/tYFstqd7jE) (not related to this repository)
 
 WIP!
 
